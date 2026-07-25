@@ -6,6 +6,7 @@ const { ipcMain, BrowserWindow } = require("electron");
 const channels = require("../shared/ipcChannels");
 
 const fileService = require("../services/fileService");
+const imageImportService = require("../services/imageImport/imageImportService");
 const configStore = require("../services/configStore");
 const imageEditor = require("../gemini/imageEditor");
 const promptOptimizer = require("../gemini/promptOptimizer");
@@ -29,8 +30,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle(channels.IMAGE_LOAD, async (_event, filePath) => {
-    const { base64, mimeType } = await fileService.readImageFile(filePath);
-    return { base64, mimeType, filePath };
+    const { base64, mimeType, sourceFormat, wasConverted } = await imageImportService.importImage(filePath);
+    return { base64, mimeType, filePath, sourceFormat, wasConverted };
   });
 
   ipcMain.handle(channels.IMAGE_EDIT, async (_event, payload) => {

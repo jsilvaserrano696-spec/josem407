@@ -105,7 +105,10 @@ async function handleImageSelected(image) {
   appState.setState({ editedImage: null });
   dom.saveImageButton.disabled = true;
   await startFreshSession({ keepEditedImage: true });
-  setStatus(dom.statusBar, "Image loaded. Describe your edit and click Edit Image.", "success");
+  const message = image.wasConverted
+    ? `Image loaded (converted from ${image.sourceFormat.toUpperCase()}). Describe your edit and click Edit Image.`
+    : "Image loaded. Describe your edit and click Edit Image.";
+  setStatus(dom.statusBar, message, "success");
 }
 
 async function handleImproveClick() {

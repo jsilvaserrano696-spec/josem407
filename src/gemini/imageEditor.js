@@ -6,7 +6,7 @@
 // call. That means a follow-up instruction like "now make it rain" only needs to carry the new
 // text; the model already has the prior result in context. See ARCHITECTURE.md for details.
 const { getClient } = require("./geminiClient");
-const fileService = require("../services/fileService");
+const imageImportService = require("../services/imageImport/imageImportService");
 
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
 
@@ -74,7 +74,7 @@ async function editImage({ sessionId, imagePaths = [], prompt, conversationMode 
     throw new Error("At least one image is required to start an edit.");
   }
 
-  const images = await Promise.all(imagePaths.map((imagePath) => fileService.readImageFile(imagePath)));
+  const images = await Promise.all(imagePaths.map((imagePath) => imageImportService.importImage(imagePath)));
   const messageParts = [
     { text: prompt },
     ...images.map((image) => ({ inlineData: { mimeType: image.mimeType, data: image.base64 } })),

@@ -5,12 +5,12 @@ export function initDropzone({ dropzoneEl, browseButtonEl, originalImageEl, onIm
 
   async function loadFromPath(filePath) {
     try {
-      const { base64, mimeType } = await window.nanoBanana.loadImage(filePath);
+      const { base64, mimeType, sourceFormat, wasConverted } = await window.nanoBanana.loadImage(filePath);
       const dataUrl = `data:${mimeType};base64,${base64}`;
       originalImageEl.src = dataUrl;
       originalImageEl.classList.remove("hidden");
       contentEl.classList.add("hidden");
-      onImageSelected({ filePath, dataUrl, mimeType });
+      onImageSelected({ filePath, dataUrl, mimeType, sourceFormat, wasConverted });
     } catch (error) {
       onError?.(error);
     }

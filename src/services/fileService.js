@@ -1,37 +1,10 @@
-// Filesystem and native-dialog access for images. Kept separate from the Gemini modules so
-// "how we read/write files" can change (e.g. temp-file handling for batch editing later)
-// without touching API call logic.
+// Filesystem and native-dialog access for images. Reading and interpreting image bytes into a
+// displayable format lives in src/services/imageImport/ (imageImportService.js) — this module
+// stays focused on raw writes and native dialogs.
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { dialog } = require("electron");
-
-const MIME_TYPES = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".heic": "image/heic",
-  ".heif": "image/heif",
-};
-
-const OPEN_DIALOG_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
-
-function mimeTypeForExtension(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  const mimeType = MIME_TYPES[ext];
-  if (!mimeType) {
-    throw new Error(
-      `Unsupported image extension "${ext}". Supported: ${Object.keys(MIME_TYPES).join(", ")}`
-    );
-  }
-  return mimeType;
-}
-
-async function readImageFile(filePath) {
-  const mimeType = mimeTypeForExtension(filePath);
-  const data = await fs.readFile(filePath);
-  return { data, mimeType, base64: data.toString("base64") };
-}
+const { listSupportedExtensions } = require("./imageImport/formatRegistry");
 
 async function writeImageFile(filePath, buffer) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -42,7 +15,7 @@ async function showOpenImageDialog(browserWindow) {
   const result = await dialog.showOpenDialog(browserWindow, {
     title: "Select an image",
     properties: ["openFile"],
-    filters: [{ name: "Images", extensions: OPEN_DIALOG_EXTENSIONS }],
+    filters: [{ name: "Images", extensions: listSupportedExtensions() }],
   });
   if (result.canceled || result.filePaths.length === 0) {
     return null;
@@ -63,8 +36,6 @@ async function showSaveImageDialog(browserWindow, suggestedName = "edited-image.
 }
 
 module.exports = {
-  mimeTypeForExtension,
-  readImageFile,
   writeImageFile,
   showOpenImageDialog,
   showSaveImageDialog,
