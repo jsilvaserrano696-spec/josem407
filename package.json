@@ -1,0 +1,43 @@
+{
+  "name": "nano-banana-studio",
+  "version": "1.0.0",
+  "description": "Professional desktop AI image editor powered by Google's Gemini 2.5 Flash Image (Nano Banana)",
+  "main": "src/main/main.js",
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "@google/genai": "^2.12.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.nanobananastudio.app",
+    "productName": "Nano Banana Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "ui/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icons/icon.ico"
+    }
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true,
+    "protobufjs@7.6.5": true,
+    "@google/genai@2.12.0": true
+  }
+}

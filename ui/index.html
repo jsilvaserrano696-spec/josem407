@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self';"
+  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nano Banana Studio</title>
+  <link rel="stylesheet" href="styles/theme.css" />
+  <link rel="stylesheet" href="styles/layout.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">🍌</span>
+        <span class="brand-name">Nano Banana Studio</span>
+      </div>
+      <button id="settings-button" class="icon-button" title="Settings" aria-label="Open settings">
+        ⚙️
+      </button>
+    </header>
+
+    <main class="app-main">
+      <section class="workspace">
+        <div class="image-panels">
+          <div class="image-panel" id="original-panel">
+            <div class="image-panel-label">Original</div>
+            <div id="dropzone" class="dropzone">
+              <div class="dropzone-content">
+                <div class="dropzone-icon">🖼️</div>
+                <p class="dropzone-text">Drag &amp; drop an image here</p>
+                <button id="browse-button" class="secondary-button">Browse files…</button>
+              </div>
+              <img id="original-image" class="preview-image hidden" alt="Original image" />
+            </div>
+          </div>
+
+          <div class="image-panel" id="edited-panel">
+            <div class="image-panel-label">Edited</div>
+            <div class="edited-frame">
+              <div id="edited-placeholder" class="edited-placeholder">
+                Your edited image will appear here
+              </div>
+              <img id="edited-image" class="preview-image hidden" alt="Edited image" />
+            </div>
+          </div>
+        </div>
+
+        <div class="prompt-panel">
+          <div class="conversation-row">
+            <label class="toggle">
+              <input type="checkbox" id="conversation-mode-toggle" checked />
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              <span class="toggle-label">Conversation Mode</span>
+            </label>
+            <button id="new-conversation-button" class="text-button">Start new conversation</button>
+          </div>
+
+          <div class="style-library" id="style-library" aria-label="Style library"></div>
+
+          <div class="prompt-box">
+            <textarea
+              id="prompt-input"
+              class="prompt-textarea"
+              rows="3"
+              placeholder="Describe the edit you want… e.g. &quot;Make this photo look cinematic&quot;"
+            ></textarea>
+            <button id="voice-button" class="icon-button voice-button" title="Voice command" aria-label="Voice command">
+              🎙️
+            </button>
+          </div>
+
+          <div class="action-row">
+            <button id="improve-prompt-button" class="secondary-button">✨ Improve Prompt</button>
+            <button id="edit-image-button" class="primary-button">Edit Image</button>
+            <button id="save-image-button" class="secondary-button" disabled>💾 Save Image</button>
+          </div>
+
+          <div class="progress-bar" id="progress-bar">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+          </div>
+
+          <div class="status-bar" id="status-bar">Ready. Drop an image to get started.</div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="sidebar-section">
+          <h2 class="sidebar-title">Templates</h2>
+          <ul id="templates-list" class="template-list"></ul>
+        </section>
+
+        <section class="sidebar-section sidebar-section-grow">
+          <div class="sidebar-title-row">
+            <h2 class="sidebar-title">History</h2>
+            <button id="clear-history-button" class="text-button">Clear</button>
+          </div>
+          <ul id="history-list" class="history-list"></ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-labelledby="settings-title">
+      <div class="modal-header">
+        <h2 id="settings-title">Settings</h2>
+        <button id="close-settings-button" class="icon-button" aria-label="Close settings">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" for="api-key-input">Gemini API Key</label>
+        <div class="api-key-row">
+          <input
+            id="api-key-input"
+            class="text-input"
+            type="password"
+            placeholder="Enter your Gemini API key"
+          />
+          <button id="save-api-key-button" class="secondary-button">Save</button>
+        </div>
+        <p id="api-key-status" class="field-hint">No key configured yet.</p>
+
+        <div class="settings-divider"></div>
+
+        <label class="toggle">
+          <input type="checkbox" id="auto-optimize-toggle" />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">Always optimize prompts before editing</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="scripts/app.js"></script>
+</body>
+</html>

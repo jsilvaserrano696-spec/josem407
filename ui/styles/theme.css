@@ -1,0 +1,63 @@
+/* Dark, professional color system. All other stylesheets consume these variables only —
+   changing the palette (e.g. a future light theme) means editing this file alone. */
+:root {
+  --bg-app: #14161a;
+  --bg-panel: #1b1e24;
+  --bg-elevated: #22262e;
+  --bg-hover: #2a2f38;
+  --border-subtle: #2d323b;
+  --border-strong: #3a4049;
+
+  --text-primary: #eef0f3;
+  --text-secondary: #a2a9b4;
+  --text-muted: #6b7280;
+
+  --accent: #f2b807;
+  --accent-strong: #ffcc33;
+  --accent-text: #1a1400;
+
+  --danger: #e6605a;
+  --success: #4cc38a;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+  --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(242, 184, 7, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+}
