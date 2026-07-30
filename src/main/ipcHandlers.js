@@ -9,6 +9,7 @@ const fileService = require("../services/fileService");
 const imageImportService = require("../services/imageImport/imageImportService");
 const configStore = require("../services/configStore");
 const imageEditor = require("../gemini/imageEditor");
+const axionCore = require("../core/axionCore");
 const promptOptimizer = require("../gemini/promptOptimizer");
 const voiceTranscriber = require("../gemini/voiceTranscriber");
 const styleLibrary = require("../styles/styleLibrary");
@@ -43,7 +44,7 @@ function registerIpcHandlers() {
   // DESIGN_PHILOSOPHY.md, the sidebar must never show the internal optimized prompt.
   ipcMain.handle(channels.IMAGE_EDIT, async (_event, { prompt, currentImage, originalImage, displayPrompt, styleId }) => {
     editDebugLogger.log("IMAGE_EDIT IPC handler received request", { promptLength: prompt?.length }); // TEMP DEBUG
-    const result = await imageEditor.editImage({ prompt, currentImage, originalImage });
+    const result = await axionCore.runEditPipeline({ prompt, currentImage, originalImage, displayPrompt, styleId });
 
     const entry = historyStore.addEntry({ prompt: displayPrompt, styleId: styleId ?? null });
     editDebugLogger.log("IMAGE_EDIT IPC handler returning result to renderer", { mimeType: result.mimeType, bytes: result.data.length }); // TEMP DEBUG
@@ -59,7 +60,7 @@ function registerIpcHandlers() {
   // text, never the internal optimized one.
   ipcMain.handle(channels.IMAGE_GENERATE, async (_event, { prompt, displayPrompt, styleId }) => {
     editDebugLogger.log("IMAGE_GENERATE IPC handler received request", { promptLength: prompt?.length }); // TEMP DEBUG
-    const result = await imageEditor.generateImage({ prompt });
+    const result = await axionCore.runGeneratePipeline({ prompt, displayPrompt, styleId });
 
     const entry = historyStore.addEntry({ prompt: displayPrompt, styleId: styleId ?? null });
     editDebugLogger.log("IMAGE_GENERATE IPC handler returning result to renderer", { mimeType: result.mimeType, bytes: result.data.length }); // TEMP DEBUG
