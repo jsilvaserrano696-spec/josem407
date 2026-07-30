@@ -7,8 +7,8 @@ module.exports = {
 
   IMAGE_LOAD: "image:load",
   IMAGE_EDIT: "image:edit",
+  IMAGE_GENERATE: "image:generate",
   IMAGE_SAVE: "image:save",
-  IMAGE_NEW_SESSION: "image:new-session",
 
   PROMPT_OPTIMIZE: "prompt:optimize",
 
@@ -26,6 +26,17 @@ module.exports = {
   CONFIG_SET_API_KEY: "config:set-api-key",
   CONFIG_SET_SETTINGS: "config:set-settings",
 
+  CLIPBOARD_READ_TEXT: "clipboard:read-text",
+
+  VOICE_TRANSCRIBE: "voice:transcribe",
+
+  // TEMP DEBUG — remove alongside src/debug/editDebugLogger.js.
+  DEBUG_LOG: "debug:log",
+
   // Main -> renderer push events (sent via webContents.send, not invoke/handle).
   MENU_OPEN_SETTINGS: "menu:open-settings",
+  MENU_OPEN_IMAGE: "menu:open-image",
+  MENU_NEW_PROJECT: "menu:new-project",
+  MENU_UNDO: "menu:undo",
+  MENU_REDO: "menu:redo",
 };

@@ -80,9 +80,21 @@ button:disabled {
   animation: pulse 1.2s ease-in-out infinite;
 }
 
+.voice-button.transcribing {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  animation: pulse-accent 1.2s ease-in-out infinite;
+}
+
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(230, 96, 90, 0.5); }
   50% { box-shadow: 0 0 0 8px rgba(230, 96, 90, 0); }
+}
+
+@keyframes pulse-accent {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242, 184, 7, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(242, 184, 7, 0); }
 }
 
 /* ---------- Image panels ---------- */
@@ -105,6 +117,67 @@ button:disabled {
   letter-spacing: 0.06em;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Wraps .image-panel-label plus optional actions (e.g. the Original panel's "Add image"
+   button). The label loses its own bottom border/padding here since the header owns them,
+   so both panels' headers stay the same height whether or not they have actions. */
+.image-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-right: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.image-panel-header .image-panel-label {
+  padding: 9px 0 9px 14px;
+  border-bottom: none;
+}
+
+.image-panel-header .icon-button {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.history-nav {
+  display: flex;
+  gap: 4px;
+}
+
+/* ---------- Original panel gallery (future thumbnail strip) ----------
+   Not populated or shown yet — this is a prepared extension point for a future multi-image
+   import gallery (see ARCHITECTURE.md). Ready-made classes so that feature only needs to
+   render <img class="gallery-thumb"> children and remove the .hidden class; no layout work
+   left to do at that point. */
+.image-gallery {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.gallery-thumb {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.gallery-thumb:hover {
+  border-color: var(--border-strong);
+}
+
+.gallery-thumb.active {
+  border-color: var(--accent);
 }
 
 .dropzone {
@@ -507,6 +580,33 @@ button:disabled {
   gap: 8px;
 }
 
+.api-key-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.api-key-input-wrap .text-input {
+  /* Room on the right so the eye toggle sits inside the field without overlapping typed/pasted
+     text — same visual language 1Password/Bitwarden-style credential fields use. */
+  padding-right: 38px;
+}
+
+.api-key-inline-button {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+}
+
+.api-key-inline-button:hover {
+  background: var(--bg-hover);
+}
+
 .text-input {
   flex: 1;
   background: var(--bg-elevated);
@@ -521,6 +621,14 @@ button:disabled {
 .text-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* <select class="text-input"> (the language picker) inherits the box styling above; this just
+   fixes the two things browsers don't take from a generic input style — pointer cursor, and the
+   native dropdown panel otherwise rendering in a light theme against this dark UI. */
+select.text-input {
+  cursor: pointer;
+  color-scheme: dark;
 }
 
 .field-hint {

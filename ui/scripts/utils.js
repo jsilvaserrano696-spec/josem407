@@ -18,6 +18,13 @@ export function generateId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Deliberate, fixed-duration pause — not tied to any network latency — used for brief status
+// confirmations that need to be readable for a moment before moving on (see
+// DESIGN_PHILOSOPHY.md's "cada mensaje es una promesa de tiempo y sentido").
+export function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function formatTimestamp(timestamp) {
   return new Date(timestamp).toLocaleString(undefined, {
     month: "short",

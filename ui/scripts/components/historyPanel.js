@@ -1,12 +1,13 @@
 // Renders the sidebar's prompt history: favorites first, then newest-first. Each entry can be
 // clicked to reuse its prompt (and style, if it had one), starred, or deleted.
 import { escapeHtml, formatTimestamp } from "../utils.js";
+import { t } from "../i18n/i18n.js";
 
 export function renderHistory(containerEl, entries, { onReuse, onDelete, onToggleFavorite, getStyleIcon }) {
   containerEl.innerHTML = "";
 
   if (entries.length === 0) {
-    containerEl.innerHTML = '<li class="empty-state">No edits yet. Your prompt history will show up here.</li>';
+    containerEl.innerHTML = `<li class="empty-state">${escapeHtml(t("history.empty"))}</li>`;
     return;
   }
 
@@ -28,8 +29,8 @@ export function renderHistory(containerEl, entries, { onReuse, onDelete, onToggl
           <div class="history-item-prompt">${escapeHtml(entry.prompt)}</div>
         </div>
         <div class="history-item-actions">
-          <button type="button" class="favorite-btn ${entry.favorite ? "favorited" : ""}" title="Favorite">★</button>
-          <button type="button" class="delete-btn" title="Delete">🗑</button>
+          <button type="button" class="favorite-btn ${entry.favorite ? "favorited" : ""}" title="${escapeHtml(t("history.favorite.title"))}">★</button>
+          <button type="button" class="delete-btn" title="${escapeHtml(t("history.delete.title"))}">🗑</button>
         </div>
       </div>
     `;

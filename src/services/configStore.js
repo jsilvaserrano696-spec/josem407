@@ -7,10 +7,16 @@ const path = require("node:path");
 const { app, safeStorage } = require("electron");
 
 const CONFIG_FILE_NAME = "config.json";
+const SUPPORTED_LANGUAGES = ["en", "es"];
 
 const DEFAULT_SETTINGS = {
-  alwaysOptimizePrompts: false,
   conversationModeDefault: true,
+  // null = "never explicitly chosen yet" (distinct from an actual language code), resolved once
+  // by ensureDefaultLanguage() on first run.
+  language: null,
+  // Hidden developer mode (see DESIGN_PHILOSOPHY.md) — never surfaced in the visible Settings
+  // modal; toggled only via the hidden shortcut registered in src/main/main.js.
+  developerMode: false,
 };
 
 function getConfigPath() {
@@ -106,10 +112,40 @@ function hasApiKey() {
   return Boolean(getApiKey());
 }
 
+function detectSystemLanguage() {
+  const base = (app.getLocale() || "en").split(/[-_]/)[0].toLowerCase();
+  return SUPPORTED_LANGUAGES.includes(base) ? base : "en";
+}
+
+/**
+ * Resolves and persists a default UI language on first run, when no language has ever been
+ * explicitly chosen (settings.language is still null). Called once at startup, before the
+ * window/menu are built, so the very first render already uses the right locale. Deliberately
+ * not folded into getSettings() — that stays a pure read; this is an explicit, one-time side
+ * effect, and a no-op on every later launch once a language is on record.
+ */
+function ensureDefaultLanguage() {
+  const settings = getSettings();
+  if (settings.language) {
+    return settings.language;
+  }
+  const detected = detectSystemLanguage();
+  setSettings({ language: detected });
+  return detected;
+}
+
+function toggleDeveloperMode() {
+  const enabled = !getSettings().developerMode;
+  setSettings({ developerMode: enabled });
+  return enabled;
+}
+
 module.exports = {
   getApiKey,
   setApiKey,
   getSettings,
   setSettings,
   hasApiKey,
+  ensureDefaultLanguage,
+  toggleDeveloperMode,
 };

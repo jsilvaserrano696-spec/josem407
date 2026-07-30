@@ -2,17 +2,17 @@
 
 ## Process boundaries
 
-Nano Banana Studio follows standard Electron security practice: the **renderer**
+AXION follows standard Electron security practice: the **renderer**
 (`ui/`) never touches the filesystem, environment variables, or the Gemini API
 directly. It only calls the narrow, typed API exposed by `src/preload/preload.js`
-via `contextBridge` (`window.nanoBanana.*`). Those calls become IPC messages
+via `contextBridge` (`window.axion.*`). Those calls become IPC messages
 handled in `src/main/ipcHandlers.js`, which delegate to plain Node modules under
 `src/`. Those modules have no Electron/IPC awareness at all — they're regular
 functions that could be unit tested or reused outside Electron entirely.
 
 ```
 ui/ (renderer, sandboxed, no Node access)
-  → window.nanoBanana.*  (src/preload/preload.js, contextBridge)
+  → window.axion.*  (src/preload/preload.js, contextBridge)
     → ipcMain.handle(...)  (src/main/ipcHandlers.js)
       → src/gemini, src/services (incl. src/services/imageImport), src/history, src/prompts, src/styles
 ```
@@ -40,15 +40,146 @@ API key never leaves the main process.
 | `src/services/imageImport` | Format detection + in-memory conversion (e.g. HEIC→PNG) — see [Image Import Pipeline](#image-import-pipeline) below |
 | `ui/scripts`       | Renderer: `app.js` orchestrates, `components/*` render + wire specific UI pieces, `state/appState.js` is a tiny observable store |
 
-## Conversation Mode
+## Version history & Undo/Redo
 
-`src/gemini/imageEditor.js` keeps a `Map<sessionId, Chat>` of active
-`@google/genai` chat sessions (`ai.chats.create()`). A chat's `sendMessage()`
-resends the full turn history — including the model's own previously generated
-image — on every call, so a follow-up instruction only needs to carry new text.
-The renderer generates a `sessionId` per "conversation" (`ui/scripts/utils.js`'s
-`generateId()`) and calls `startNewSession` (→ `imageEditor.endSession`) whenever
-the user drops a new image or clicks "Start new conversation".
+`src/gemini/imageEditor.js` has no memory between calls and keeps no server-side
+Gemini chat session — every edit (and every from-scratch creation) is a single,
+stateless `generateContent()` call. Continuity across edits ("Conversation
+Mode") and Undo/Redo are both handled entirely on the renderer side, in
+`ui/scripts/state/appState.js`'s `versionHistory` array + `versionCursor`
+index: index 0 is the project's starting point — either an imported file
+(`prompt: null`) or a from-scratch creation (`prompt` holds the creation
+prompt, see "New vs. Edit" below) — and each successful edit appends a new
+version (image + the user's own prompt, in their own language — never the
+internal Gemini-optimized one, see DESIGN_PHILOSOPHY.md) and moves the cursor
+to it.
+
+- **Undo/Redo** just move `versionCursor` and repaint whichever version it now
+  points at — no IPC call, no Gemini request, no tokens spent.
+- **Conversation Mode** (the checkbox) decides which image is sent as the source
+  for the *next* edit: `versionHistory[versionCursor]` (build on what's currently
+  shown) when on, or always `versionHistory[0]` (the original) when off. Either
+  way, that image is sent explicitly as inline data on every call — this is what
+  makes edits work correctly even after undoing to a past version, which a
+  stateful Gemini chat session couldn't support (there's no API to rewind a chat
+  to an earlier turn).
+- **Editing from a past version** (cursor not at the end) truncates everything
+  after the cursor before appending the new version — replace, not branch. Every
+  version is still visible in the persisted History sidebar
+  (`src/history/historyStore.js`) regardless, since that's a separate,
+  chronological, prompt-only log independent of the undo/redo cursor.
+- `versionHistory` is **not** persisted to disk or across app restarts — same as
+  Undo history in any other image editor, it resets when a new image is dropped
+  or "Start new conversation" is clicked.
+
+### New vs. Edit — one shared flow, not two
+
+"File > New..." (`startNewProject()` in `app.js`) doesn't open a dialog — it just
+empties `versionHistory` (`[]`, cursor `-1`) and clears both image panels. From
+there, the *same* primary action button and the *same* prompt box handle both
+cases: `handleEditClick()` checks `versionHistory.length === 0` once, and either
+calls `imageEditor.generateImage({ prompt })` (no source image — a plain
+text-to-image `generateContent()` call, sharing `extractImageFromResponse` with
+`editImage()`) or `imageEditor.editImage({ prompt, currentImage, originalImage })`
+as before. Both branches converge on the same `pushVersion()` helper, so **Undo, Redo,
+Save, and the History sidebar require zero special-casing** for a created
+project versus an imported one — the only place that distinguishes them is
+version 0's `prompt` field (`null` for an import, the creation prompt for a
+generation), which is what the "Save" button's enabled state at version 0
+checks, since a generated image (unlike an imported file) has never touched
+disk anywhere yet.
+
+## Fidelity anchor — preventing identity drift across a long edit chain
+
+Generative image models regenerate the *entire* frame on every call — they don't
+selectively touch only the requested region the way a clone-stamp tool would.
+Left unchecked, this means small deviations from one edit become part of the
+input to the next, and compound: by the Nth edit in a chain, elements the user
+never asked to change (composition, props, logos, text, background) can have
+drifted noticeably from the original. This is a structural property of
+iterative image-to-image generation, not a bug in a specific prompt.
+
+Two things work together against it, and neither is a full guarantee on its
+own:
+
+1. **`optimizerPromptBuilder.js`'s meta-prompt** reframes the optimizer from "a
+   creative expander" to an art director: identify the one element the user
+   asked to change, and explicitly instruct the image model to leave everything
+   else — composition, framing, every character's identity/pose/expression,
+   every object/prop/logo/text, the background, the palette — untouched unless
+   the request genuinely requires it. It also weaves in the list of
+   already-applied prior prompts (`priorEdits`, sourced straight from
+   `versionHistory`) so the model knows what's already deliberately in effect
+   and shouldn't be undone.
+2. **`imageEditor.js`'s `editImage()`** sends a second reference image —
+   `originalImage`, always `versionHistory[0]`, whenever the current version
+   isn't already version 0 — labeled explicitly in the request as the fidelity
+   ground truth. This is the structural fix for *compounding* drift: the true,
+   never-degraded original stays in the model's context on every single edit
+   for the life of the project, not just the first one. (Sending two images in
+   one request reuses the same multi-image capability
+   [`MATRIX_REFERENCE_MODE_DESIGN.md`](./MATRIX_REFERENCE_MODE_DESIGN.md)
+   designs for composing several role-tagged sources — here applied to one
+   role: "identity reference" rather than "compositional source".)
+
+**What this doesn't guarantee:** pixel-exact preservation of a specific region
+(e.g. "the logo must be byte-identical, always") isn't something prompting can
+promise — the model is probabilistic, not a masking tool. A true guarantee for
+that would need a segmentation mask plus a post-generation compositing step
+(paste the original's untouched pixels back in outside the mask) — a real,
+buildable feature, but a materially larger one than the two layers above, and
+not implemented yet.
+
+### Diagnose before improving — avoiding over-conservative edits
+
+An early version of layer 1 told the model, generically, to "preserve
+everything except what's requested." In practice this backfired for vague or
+evaluative requests (e.g. "improve this image"): with no concrete target, the
+model played it safe and changed almost nothing — trading visible identity
+drift for barely-perceptible edits, not an actual balance.
+
+`promptOptimizer.js`'s `optimizePrompt()` now passes the current image
+(`currentImage`) to the *same* optimizer call whenever one exists (i.e.
+editing, never when creating from scratch — see "New vs. Edit" above), and
+`optimizerPromptBuilder.js`'s meta-prompt asks the model to reason in two
+phases in that one request: first silently diagnose the image against eight
+axes (materials, lighting, atmosphere, depth, micro-detail, contrast,
+integration of elements, render quality) — naming concrete strengths (to
+preserve *by name*, not generically) and concrete weaknesses (real,
+specific improvement candidates) — then write the final instruction using
+only that diagnosis. The response is split on a fixed `### DIAGNOSIS` /
+`### INSTRUCTION` marker; only the instruction half is ever sent onward or
+shown anywhere — the diagnosis is logged for developer mode only
+(`editDebugLogger`), never surfaced in the UI (see DESIGN_PHILOSOPHY.md).
+One multimodal call, not two: cheaper and simpler than a separate
+diagnosis-then-optimize round trip, at the cost of combining both
+responsibilities in a single prompt.
+
+**Lesson learned, twice:** stacking restrictive instructions without an
+equally explicit instruction for how strongly to apply the requested change
+reliably collapses to near-null edits — the safest output relative to a pile
+of "don't touch this" rules is barely touching anything. Every preservation
+rule in the meta-prompt is now paired with an equally explicit commit-to-the-
+change rule, and `editImage()`'s reference-image label was reworded away from
+an absolute "must match this image exactly" (which competed directly against
+the instruction) to a scoped continuity note.
+
+**Element-vs-element comparison, not abstract judgment:** for broad/evaluative
+requests ("improve this", "make it more epic") specifically, the diagnosis
+doesn't just judge quality in the abstract — it compares the image's own
+distinct elements (e.g. a sword vs. a castle in the same scene) against each
+other, and the instruction it composes elevates the weaker element to match
+the strongest one already achieved *in that same image*. This came from a
+direct observation during testing: "give the castle the same level of realism
+as the sword" produced a far better result than "make it more epic" — a
+comparison grounded in something the model can actually see outperforms an
+invented aesthetic standard. Specific, narrow requests skip this entirely and
+are just applied directly, as before.
+
+The renderer shows **"Analizando la imagen…"** during this call when editing
+(`status.analyzing`), and **"Interpretando tu petición…"** when creating
+(`status.interpreting`, unchanged) — same wait as before, now labeled for
+what it actually does.
 
 ## Image Import Pipeline
 
@@ -124,10 +255,16 @@ require restructuring:
   [Image Import Pipeline](#image-import-pipeline) above. Formats Chromium already renders are
   a one-line `formatRegistry.js` entry; formats needing conversion are one new file under
   `src/services/imageImport/converters/`.
-- **Batch editing / multiple images** — `imageEditor.editImage()` already accepts
-  `imagePaths: string[]`, not a single path. A batch UI would loop over files and
-  call the existing IPC handler per item (or a new `image:edit-batch` handler that
-  does the same loop main-side); no change needed to the core editing function.
+- **Batch editing / multiple images** — `imageEditor.editImage()` takes a single
+  `sourceImage`; a batch UI would loop over files/versions and call the existing
+  IPC handler once per item (or a new `image:edit-batch` handler doing the same
+  loop main-side) — no change needed to the core editing function itself.
+- **Multi-role image composition (Matrix + Reference mode)** — a full design proposal (not yet
+  implemented) for editing with several role-tagged images at once (a "Matrix" identity anchor
+  plus "Reference"/future role images contributing style, lighting, etc.) lives in
+  [`MATRIX_REFERENCE_MODE_DESIGN.md`](./MATRIX_REFERENCE_MODE_DESIGN.md). It would extend
+  `imageEditor.editImage()`'s single-image `messageParts` array to several inline-data
+  parts, and the `#original-gallery`/`.image-gallery` UI seam described above.
 - **Prompt templates** — `src/prompts/promptTemplates.js` already persists to
   `userData/templates.json` using the exact same read/write pattern as
   `historyStore.js`. A template manager UI (create/edit/delete) would add
@@ -145,12 +282,40 @@ require restructuring:
   plugin loader could register additional channels/services (e.g. a new style pack,
   a new export format) without touching any existing module.
 
-## Known limitation: voice recognition
+## Voice commands (Gemini-based transcription)
 
-`ui/scripts/services/speechService.js` wraps the browser `SpeechRecognition` API
-(`webkitSpeechRecognition`), available for free since Electron's renderer is
-Chromium. This is routed through a Google web speech service whose availability
-can vary by Electron/Chromium build and network policy — an Electron platform
-limitation, not something app code fully controls. The service is isolated behind
-a small interface specifically so it can be swapped for a cloud STT API call
-later without touching any UI component.
+`ui/scripts/services/speechService.js` no longer uses the browser's native
+`webkitSpeechRecognition`. That API routes audio through a Google backend that
+requires a proprietary API key baked only into official Google Chrome builds —
+Electron ships open-source Chromium, which lacks that key, so every request
+fails with a `"network"` error regardless of permissions, CSP, or `webPreferences`
+(a platform limitation documented in long-running upstream issues, not a bug in
+this app).
+
+Instead, `speechService.js` captures raw mic audio via the Web Audio API
+(`getUserMedia` + a `ScriptProcessorNode`), hand-encodes it into a WAV container
+(`encodeWav()`, no dependency — the format is simple enough to write by hand),
+and sends it over IPC (`channels.VOICE_TRANSCRIBE`) to
+`src/gemini/voiceTranscriber.js`, which transcribes it with the same Gemini API
+key already configured in Settings (`gemini-flash-latest`, the same fast
+text-capable alias `promptOptimizer.js` uses — Flash models are natively
+multimodal, so no separate model is needed). WAV was chosen over the
+`audio/webm` `MediaRecorder` produces because `webm` isn't one of the MIME types
+Gemini accepts for inline audio; recording at 16kHz mono also matches the rate
+Gemini downsamples audio to internally.
+
+```
+mic (getUserMedia) → ScriptProcessorNode (PCM Float32)
+  → encodeWav() → base64
+  → window.axion.transcribeAudio()          (preload.js)
+    → ipcMain.handle(VOICE_TRANSCRIBE)       (ipcHandlers.js)
+      → voiceTranscriber.transcribeAudio()   (Gemini generateContent, audio inline part)
+```
+
+`speechService.js`'s public interface (`isSupported()`,
+`start({ onResult, onError, onTranscribing, onEnd })`, `stop()`) is unchanged
+from before, so `voiceButton.js` and `app.js` don't need to know which STT
+backend is behind it. Swapping to a different engine later (a local model, a
+different cloud STT API) only means rewriting `voiceTranscriber.js` (and, if the
+new engine needs a different audio format, `encodeWav()`) — the IPC channel,
+preload bridge, and every renderer component stay untouched.

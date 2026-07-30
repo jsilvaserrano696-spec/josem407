@@ -1,8 +1,6 @@
 // A minimal observable store — no framework needed for a UI this size. Components read/write
 // through this instead of passing state around by hand, while app.js stays the only place that
 // wires state changes to DOM updates.
-import { generateId } from "../utils.js";
-
 export function createStore(initialState) {
   let state = { ...initialState };
   const listeners = new Set();
@@ -24,12 +22,14 @@ export function createStore(initialState) {
 }
 
 export const appState = createStore({
-  sessionId: generateId(),
-  hasActiveSession: false,
-  originalImage: null, // { filePath, dataUrl, mimeType }
-  editedImage: null, // { base64, mimeType, dataUrl }
+  // Version history for the current image, in edit order — index 0 is always the original,
+  // unedited import (prompt: null). Undo/Redo just move versionCursor; no Gemini call, no
+  // network. Editing while versionCursor isn't at the end truncates everything after it
+  // (replace, not branch — see DESIGN_PHILOSOPHY.md/the Undo-Redo design discussion).
+  // Each entry: { id, versionNumber, prompt, styleId, timestamp, image: { base64, mimeType } }
+  versionHistory: [],
+  versionCursor: -1, // -1 = no image loaded yet
   selectedStyleId: null,
   conversationMode: true,
-  autoOptimizePrompts: false,
   isBusy: false,
 });

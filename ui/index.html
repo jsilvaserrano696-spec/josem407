@@ -7,7 +7,7 @@
     content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self';"
   />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nano Banana Studio</title>
+  <title>AXION</title>
   <link rel="stylesheet" href="styles/theme.css" />
   <link rel="stylesheet" href="styles/layout.css" />
   <link rel="stylesheet" href="styles/components.css" />
@@ -16,10 +16,17 @@
   <div class="app-shell">
     <header class="app-header">
       <div class="brand">
-        <span class="brand-icon">🍌</span>
-        <span class="brand-name">Nano Banana Studio</span>
+        <span class="brand-icon">◆</span>
+        <span class="brand-name">AXION</span>
       </div>
-      <button id="settings-button" class="icon-button" title="Settings" aria-label="Open settings">
+      <button
+        id="settings-button"
+        class="icon-button"
+        title="Settings"
+        aria-label="Open settings"
+        data-i18n-title="header.settings.title"
+        data-i18n-aria-label="header.settings.ariaLabel"
+      >
         ⚙️
       </button>
     </header>
@@ -28,24 +35,83 @@
       <section class="workspace">
         <div class="image-panels">
           <div class="image-panel" id="original-panel">
-            <div class="image-panel-label">Original</div>
+            <div class="image-panel-header">
+              <div class="image-panel-label" data-i18n="panel.original">Original</div>
+              <button
+                id="add-image-button"
+                class="icon-button"
+                title="Add image"
+                aria-label="Add or replace the original image"
+                data-i18n-title="panel.addImage.title"
+                data-i18n-aria-label="panel.addImage.ariaLabel"
+              >
+                ➕
+              </button>
+            </div>
             <div id="dropzone" class="dropzone">
               <div class="dropzone-content">
                 <div class="dropzone-icon">🖼️</div>
-                <p class="dropzone-text">Drag &amp; drop an image here</p>
-                <button id="browse-button" class="secondary-button">Browse files…</button>
+                <p class="dropzone-text" data-i18n="dropzone.dragDrop">Drag &amp; drop an image here</p>
+                <button id="browse-button" class="secondary-button" data-i18n="dropzone.browse">Browse files…</button>
               </div>
-              <img id="original-image" class="preview-image hidden" alt="Original image" />
+              <img
+                id="original-image"
+                class="preview-image hidden"
+                alt="Original image"
+                data-i18n-alt="image.original.alt"
+              />
             </div>
+            <!--
+              Extension point for a future multi-image gallery (thumbnails of recently
+              imported images, click to switch the active original). Intentionally empty and
+              hidden for now — see ARCHITECTURE.md's "Original panel gallery placeholder".
+            -->
+            <div
+              id="original-gallery"
+              class="image-gallery hidden"
+              aria-label="Recent images"
+              data-i18n-aria-label="gallery.ariaLabel"
+            ></div>
           </div>
 
           <div class="image-panel" id="edited-panel">
-            <div class="image-panel-label">Edited</div>
+            <div class="image-panel-header">
+              <div class="image-panel-label" data-i18n="panel.edited">Edited</div>
+              <div class="history-nav">
+                <button
+                  id="undo-button"
+                  class="icon-button"
+                  title="Undo"
+                  aria-label="Undo"
+                  disabled
+                  data-i18n-title="button.undo.title"
+                  data-i18n-aria-label="button.undo.ariaLabel"
+                >
+                  ↩️
+                </button>
+                <button
+                  id="redo-button"
+                  class="icon-button"
+                  title="Redo"
+                  aria-label="Redo"
+                  disabled
+                  data-i18n-title="button.redo.title"
+                  data-i18n-aria-label="button.redo.ariaLabel"
+                >
+                  ↪️
+                </button>
+              </div>
+            </div>
             <div class="edited-frame">
-              <div id="edited-placeholder" class="edited-placeholder">
+              <div id="edited-placeholder" class="edited-placeholder" data-i18n="edited.placeholder">
                 Your edited image will appear here
               </div>
-              <img id="edited-image" class="preview-image hidden" alt="Edited image" />
+              <img
+                id="edited-image"
+                class="preview-image hidden"
+                alt="Edited image"
+                data-i18n-alt="image.edited.alt"
+              />
             </div>
           </div>
         </div>
@@ -55,12 +121,19 @@
             <label class="toggle">
               <input type="checkbox" id="conversation-mode-toggle" checked />
               <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              <span class="toggle-label">Conversation Mode</span>
+              <span class="toggle-label" data-i18n="conversationMode.label">Conversation Mode</span>
             </label>
-            <button id="new-conversation-button" class="text-button">Start new conversation</button>
+            <button id="new-conversation-button" class="text-button" data-i18n="conversationMode.newButton">
+              Start new conversation
+            </button>
           </div>
 
-          <div class="style-library" id="style-library" aria-label="Style library"></div>
+          <div
+            class="style-library"
+            id="style-library"
+            aria-label="Style library"
+            data-i18n-aria-label="styleLibrary.ariaLabel"
+          ></div>
 
           <div class="prompt-box">
             <textarea
@@ -68,36 +141,45 @@
               class="prompt-textarea"
               rows="3"
               placeholder="Describe the edit you want… e.g. &quot;Make this photo look cinematic&quot;"
+              data-i18n-placeholder="prompt.placeholder"
             ></textarea>
-            <button id="voice-button" class="icon-button voice-button" title="Voice command" aria-label="Voice command">
+            <button
+              id="voice-button"
+              class="icon-button voice-button"
+              title="Voice command"
+              aria-label="Voice command"
+              data-i18n-title="voice.button.title"
+              data-i18n-aria-label="voice.button.ariaLabel"
+            >
               🎙️
             </button>
           </div>
 
           <div class="action-row">
-            <button id="improve-prompt-button" class="secondary-button">✨ Improve Prompt</button>
-            <button id="edit-image-button" class="primary-button">Edit Image</button>
-            <button id="save-image-button" class="secondary-button" disabled>💾 Save Image</button>
+            <button id="edit-image-button" class="primary-button" data-i18n="button.editImage">Edit Image</button>
+            <button id="save-image-button" class="secondary-button" disabled data-i18n="button.saveImage">
+              💾 Save Image
+            </button>
           </div>
 
           <div class="progress-bar" id="progress-bar">
             <div class="progress-bar-fill" id="progress-bar-fill"></div>
           </div>
 
-          <div class="status-bar" id="status-bar">Ready. Drop an image to get started.</div>
+          <div class="status-bar" id="status-bar" data-i18n="status.ready">Ready. Drop an image to get started.</div>
         </div>
       </section>
 
       <aside class="sidebar">
         <section class="sidebar-section">
-          <h2 class="sidebar-title">Templates</h2>
+          <h2 class="sidebar-title" data-i18n="sidebar.templates">Templates</h2>
           <ul id="templates-list" class="template-list"></ul>
         </section>
 
         <section class="sidebar-section sidebar-section-grow">
           <div class="sidebar-title-row">
-            <h2 class="sidebar-title">History</h2>
-            <button id="clear-history-button" class="text-button">Clear</button>
+            <h2 class="sidebar-title" data-i18n="sidebar.history">History</h2>
+            <button id="clear-history-button" class="text-button" data-i18n="history.clear">Clear</button>
           </div>
           <ul id="history-list" class="history-list"></ul>
         </section>
@@ -108,29 +190,62 @@
   <div id="settings-modal" class="modal-overlay hidden">
     <div class="modal" role="dialog" aria-labelledby="settings-title">
       <div class="modal-header">
-        <h2 id="settings-title">Settings</h2>
-        <button id="close-settings-button" class="icon-button" aria-label="Close settings">✕</button>
+        <h2 id="settings-title" data-i18n="settings.title">Settings</h2>
+        <button
+          id="close-settings-button"
+          class="icon-button"
+          aria-label="Close settings"
+          data-i18n-aria-label="settings.close.ariaLabel"
+        >
+          ✕
+        </button>
       </div>
       <div class="modal-body">
-        <label class="field-label" for="api-key-input">Gemini API Key</label>
+        <label class="field-label" for="api-key-input" data-i18n="settings.apiKey.label">Access key</label>
         <div class="api-key-row">
-          <input
-            id="api-key-input"
-            class="text-input"
-            type="password"
-            placeholder="Enter your Gemini API key"
-          />
-          <button id="save-api-key-button" class="secondary-button">Save</button>
+          <div class="api-key-input-wrap">
+            <input
+              id="api-key-input"
+              class="text-input"
+              type="password"
+              placeholder="Enter your access key"
+              autocomplete="off"
+              spellcheck="false"
+              data-i18n-placeholder="settings.apiKey.placeholder"
+            />
+            <button
+              id="toggle-key-visibility-button"
+              type="button"
+              class="icon-button api-key-inline-button"
+              title="Show key"
+              aria-label="Show key"
+            >
+              👁
+            </button>
+          </div>
+          <button
+            id="paste-api-key-button"
+            type="button"
+            class="icon-button"
+            title="Paste from clipboard"
+            aria-label="Paste key from clipboard"
+            data-i18n-title="settings.apiKey.paste.title"
+            data-i18n-aria-label="settings.apiKey.paste.ariaLabel"
+          >
+            📋
+          </button>
+          <button id="save-api-key-button" class="secondary-button" data-i18n="settings.apiKey.save">Save</button>
         </div>
         <p id="api-key-status" class="field-hint">No key configured yet.</p>
 
         <div class="settings-divider"></div>
 
-        <label class="toggle">
-          <input type="checkbox" id="auto-optimize-toggle" />
-          <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span class="toggle-label">Always optimize prompts before editing</span>
-        </label>
+        <label class="field-label" for="language-select" data-i18n="settings.language.label">Language</label>
+        <select id="language-select" class="text-input">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+
       </div>
     </div>
   </div>

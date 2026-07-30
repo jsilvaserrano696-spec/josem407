@@ -1,5 +1,5 @@
 {
-  "name": "nano-banana-studio",
+  "name": "axion",
   "version": "1.0.0",
   "description": "Professional desktop AI image editor powered by Google's Gemini 2.5 Flash Image (Nano Banana)",
   "main": "src/main/main.js",
@@ -20,8 +20,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "com.nanobananastudio.app",
-    "productName": "Nano Banana Studio",
+    "appId": "com.axion.app",
+    "productName": "AXION",
     "directories": {
       "output": "dist"
     },

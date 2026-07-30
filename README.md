@@ -1,4 +1,4 @@
-# Nano Banana Studio
+# AXION
 
 A professional desktop AI image editor for Windows, built with Electron and
 powered by Google's **Gemini 2.5 Flash Image** ("Nano Banana") model.
@@ -75,7 +75,7 @@ lands in `dist/`.
 ## Project structure
 
 ```
-nano-banana-studio/
+axion/
 ├── src/
 │   ├── main/         Electron app lifecycle, menu, IPC registration
 │   ├── preload/       contextBridge — the only renderer↔main bridge

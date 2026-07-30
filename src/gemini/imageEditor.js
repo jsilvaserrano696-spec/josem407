@@ -1,44 +1,31 @@
-// Core image-editing logic: turns a prompt (+ one or more images) into an edited image via
-// Gemini 2.5 Flash Image, with optional multi-turn "Conversation Mode".
-//
-// Conversation Mode uses the SDK's own chat session (ai.chats.create / chat.sendMessage), which
-// resends the full turn history — including the model's own previously generated image — on every
-// call. That means a follow-up instruction like "now make it rain" only needs to carry the new
-// text; the model already has the prior result in context. See ARCHITECTURE.md for details.
-const { getClient } = require("./geminiClient");
-const imageImportService = require("../services/imageImport/imageImportService");
+// Core image-editing logic: turns a prompt + a source image (plus, usually, the original image
+// as a fidelity anchor — see editImage() below) into an edited image via Gemini 2.5 Flash Image.
+// Always a single, stateless request — there is no server-side chat session and no memory
+// between calls. The renderer's own version history (see ARCHITECTURE.md's "Version history &
+// Undo/Redo" and "Fidelity anchor") is what decides which image counts as "current"; it's sent
+// explicitly on every edit. That's what makes Undo/Redo free (no Gemini call, no tokens) and
+// correct even after editing from a past version — there's no session to fall out of sync with
+// what's actually on screen.
+const { getClient, describeGeminiError } = require("./geminiClient");
+const configStore = require("../services/configStore");
+const { loadLocaleStrings } = require("../shared/localeStrings");
+const editDebugLogger = require("../debug/editDebugLogger");
 
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
-
-// sessionId -> Chat instance. One entry per open conversation; cleared when the renderer starts
-// a new session (e.g. a new image is dropped) or conversation mode is turned off.
-const activeSessions = new Map();
-
-function startSession(sessionId) {
-  const ai = getClient();
-  const chat = ai.chats.create({ model: DEFAULT_MODEL });
-  activeSessions.set(sessionId, chat);
-  return chat;
-}
-
-function endSession(sessionId) {
-  activeSessions.delete(sessionId);
-}
-
-function hasActiveSession(sessionId) {
-  return activeSessions.has(sessionId);
-}
 
 function extractImageFromResponse(response) {
   const parts = response?.candidates?.[0]?.content?.parts ?? [];
   const imagePart = parts.find((part) => part.inlineData?.data);
 
   if (!imagePart) {
+    // Technical detail (what the model said instead) is developer-mode-only — the user only
+    // ever sees a generic, localized message (see DESIGN_PHILOSOPHY.md).
     const textPart = parts.find((part) => part.text);
-    const reason = textPart?.text
-      ? `Model responded with text instead of an image: "${textPart.text}"`
-      : "No image data was returned by the model.";
-    throw new Error(reason);
+    editDebugLogger.log("Gemini returned no image (developer mode detail)", {
+      modelText: textPart?.text ?? null,
+    });
+    const strings = loadLocaleStrings(configStore.getSettings().language || "es");
+    throw new Error(strings["error.imageGenerationFailed"]);
   }
 
   return {
@@ -48,46 +35,83 @@ function extractImageFromResponse(response) {
 }
 
 /**
- * Edits one or more images with a text prompt.
- *
- * `imagePaths` accepts multiple paths (not just one) so future multi-image / reference-image
- * features don't require a signature change. Today the UI only ever sends one.
- *
- * When `conversationMode` is true and a session is already open for `sessionId`, only the text
- * prompt is sent — the model already has the prior image in context. Otherwise this is treated
- * as the first turn: the images at `imagePaths` are read from disk and sent alongside the prompt.
+ * Edits an image with a text prompt. `currentImage` is whatever the renderer's version history
+ * currently points at — sent as inline data, same as before. `originalImage`, when provided (the
+ * renderer omits it when currentImage already *is* the original — nothing to anchor against),
+ * is sent as a second reference image with its own text label, so the model has the untouched
+ * original in view on every single edit, not just the first one. This is the "fidelity anchor"
+ * described in ARCHITECTURE.md: it's what stops small deviations from one edit compounding into
+ * the next, since the true original never drops out of context for the life of the project.
+ * The labels here are structural glue (which image is which), not creative instruction — the
+ * actual "what to change / what to preserve" content is `prompt`, built by
+ * optimizerPromptBuilder.js. Nothing in this function reads from disk or keeps state across calls.
  */
-async function editImage({ sessionId, imagePaths = [], prompt, conversationMode = true }) {
+async function editImage({ prompt, currentImage, originalImage }) {
+  if (!prompt || !prompt.trim()) {
+    throw new Error("Prompt must not be empty.");
+  }
+  if (!currentImage?.base64) {
+    throw new Error("A source image is required to start an edit.");
+  }
+
+  const ai = getClient();
+  const messageParts = [
+    { text: prompt },
+    { text: "Reference image A — current state, build the requested change on top of this:" },
+    { inlineData: { mimeType: currentImage.mimeType, data: currentImage.base64 } },
+  ];
+  if (originalImage?.base64) {
+    messageParts.push(
+      // Deliberately not phrased as "must match this exactly" — that absolute wording competed
+      // directly against the instruction's own request for a fully realized change, and edits
+      // came out barely perceptible. The instruction text already says precisely what to change
+      // and what to preserve; this image is continuity support for the untouched parts, not a
+      // second, independent brake on the part that's actually supposed to change.
+      { text: "Reference image B — the untouched original, for continuity. The instruction above " +
+          "already specifies exactly what to change and what to preserve — use this image only to " +
+          "keep whatever falls outside that scope visually consistent. It is not a reason to " +
+          "soften or limit the requested change itself:" },
+      { inlineData: { mimeType: originalImage.mimeType, data: originalImage.base64 } }
+    );
+  }
+
+  const startedAt = Date.now();
+  try {
+    const response = await ai.models.generateContent({ model: DEFAULT_MODEL, contents: messageParts });
+    editDebugLogger.log("Gemini image edit responded", {
+      elapsedMs: Date.now() - startedAt,
+      withFidelityAnchor: Boolean(originalImage?.base64),
+    });
+    return extractImageFromResponse(response);
+  } catch (error) {
+    editDebugLogger.logError("editImage() failed", error);
+    throw describeGeminiError(error);
+  }
+}
+
+/**
+ * Creates a brand-new image from a text prompt alone — no source image. Same model, same
+ * response shape, just no inlineData part in the request. This is what lets "New" and "Edit"
+ * share the exact same version-history append logic on the renderer side: the only difference
+ * between them is whether this function or editImage() produced the bytes.
+ */
+async function generateImage({ prompt }) {
   if (!prompt || !prompt.trim()) {
     throw new Error("Prompt must not be empty.");
   }
 
   const ai = getClient();
-  const existingChat = conversationMode ? activeSessions.get(sessionId) : null;
+  const messageParts = [{ text: prompt }];
 
-  if (existingChat) {
-    const response = await existingChat.sendMessage({ message: [{ text: prompt }] });
+  const startedAt = Date.now();
+  try {
+    const response = await ai.models.generateContent({ model: DEFAULT_MODEL, contents: messageParts });
+    editDebugLogger.log("Gemini image generation responded", { elapsedMs: Date.now() - startedAt });
     return extractImageFromResponse(response);
+  } catch (error) {
+    editDebugLogger.logError("generateImage() failed", error);
+    throw describeGeminiError(error);
   }
-
-  if (imagePaths.length === 0) {
-    throw new Error("At least one image is required to start an edit.");
-  }
-
-  const images = await Promise.all(imagePaths.map((imagePath) => imageImportService.importImage(imagePath)));
-  const messageParts = [
-    { text: prompt },
-    ...images.map((image) => ({ inlineData: { mimeType: image.mimeType, data: image.base64 } })),
-  ];
-
-  if (conversationMode) {
-    const chat = startSession(sessionId);
-    const response = await chat.sendMessage({ message: messageParts });
-    return extractImageFromResponse(response);
-  }
-
-  const response = await ai.models.generateContent({ model: DEFAULT_MODEL, contents: messageParts });
-  return extractImageFromResponse(response);
 }
 
-module.exports = { editImage, startSession, endSession, hasActiveSession, DEFAULT_MODEL };
+module.exports = { editImage, generateImage, DEFAULT_MODEL };
