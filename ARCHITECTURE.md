@@ -40,6 +40,26 @@ API key never leaves the main process.
 | `src/services/imageImport` | Format detection + in-memory conversion (e.g. HEIC→PNG) — see [Image Import Pipeline](#image-import-pipeline) below |
 | `ui/scripts`       | Renderer: `app.js` orchestrates, `components/*` render + wire specific UI pieces, `state/appState.js` is a tiny observable store |
 
+## AXION CORE (base structural, not wired in yet)
+
+`src/core/` is the seam for AXION's internal pipeline — ANALYZE → DIRECTOR → PROMPT ENGINE →
+EXECUTE → INSPECTOR. As of this writing it exists only as an isolated, importable set of modules:
+**nothing in `ipcHandlers.js` or `app.js` calls it yet**, and the real edit/generate flow is
+unchanged — it still calls `src/gemini/imageEditor.js` and `src/gemini/promptOptimizer.js`
+directly, exactly as before.
+
+| Module                  | Responsibility (v0)                                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/analyze.js`    | Stub. Shapes `{ subject, intent, hasImage, styleId, constraints }` from a request — no Gemini call, no real analysis yet.                                       |
+| `src/core/director.js`   | Stub. Passes the chosen style through as `{ styleId, priorities, notes }` — no creative decision-making yet.                                                    |
+| `src/core/inspector.js`  | Stub. Returns `{ passed: true, score: null, notes: [] }` for any result; logs via `editDebugLogger` only when Developer Mode (`configStore`) is on, and never throws. |
+| `src/core/axionCore.js`  | Orchestrator. `runEditPipeline()` / `runGeneratePipeline()` run ANALYZE → DIRECTOR → EXECUTE (delegating to `imageEditor.js`, unchanged) → INSPECTOR, with each non-EXECUTE stage wrapped in its own try/catch so a stub failure can never break a real edit. |
+
+PROMPT ENGINE (`src/prompts`, `promptOptimizer.js`), EXECUTE (`imageEditor.js`), HISTORY
+(`historyStore.js`) and CONFIG (`configStore.js`) are reused as-is — CORE calls into them, it
+doesn't duplicate them. Wiring `axionCore` into the real IPC handlers is a deliberate later step,
+done once the stubs are replaced with real logic.
+
 ## Version history & Undo/Redo
 
 `src/gemini/imageEditor.js` has no memory between calls and keeps no server-side
