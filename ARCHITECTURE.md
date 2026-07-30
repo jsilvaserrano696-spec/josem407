@@ -60,6 +60,11 @@ PROMPT ENGINE (`src/prompts`, `promptOptimizer.js`), EXECUTE (`imageEditor.js`),
 doesn't duplicate them. Wiring `axionCore` into the real IPC handlers is a deliberate later step,
 done once the stubs are replaced with real logic.
 
+`src/core/intentSchema.js` defines the **AXION Intent Schema v1**, the internal data contract
+ANALYZE/DIRECTOR/PROMPT ENGINE/EXECUTE/INSPECTOR will eventually share instead of re-parsing
+natural language at each stage — not connected to any real module yet. See
+[AXION_INTENT_SCHEMA.md](./AXION_INTENT_SCHEMA.md) for the full field reference and examples.
+
 ## Version history & Undo/Redo
 
 `src/gemini/imageEditor.js` has no memory between calls and keeps no server-side
