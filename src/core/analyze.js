@@ -1,15 +1,35 @@
-// ANALYZE stage (stub). Will eventually turn a user's request (+ image, when editing) into a
-// structured understanding of subject/intent/constraints for DIRECTOR to act on. For now it does
-// no real analysis and makes no Gemini call — it only shapes its input into a stable, predictable
-// return value so axionCore.js and future stages have a fixed contract to build against.
-function analyzeRequest({ userPrompt, currentImage, styleId } = {}) {
-  return {
-    subject: null,
-    intent: userPrompt ?? null,
-    hasImage: Boolean(currentImage?.base64),
-    styleId: styleId ?? null,
+// ANALYZE stage. Builds an AXION Intent v1 (src/core/intentSchema.js) from the data the pipeline
+// already has — no Gemini call, no real semantic analysis yet. `operation` is passed in by
+// axionCore.js (which already knows which pipeline is running) rather than inferred here, so
+// `operation`/`hasImage` can never disagree with each other by construction. `action` is a fixed,
+// generic placeholder until real interpretation exists; targets/protect/constraints/assumptions
+// and all of `direction` stay empty/neutral — DIRECTOR's job, not ANALYZE's.
+const { buildIntent } = require("./intentSchema");
+
+function analyzeRequest({ operation, userPrompt, currentImage, styleId } = {}) {
+  const hasImage = operation === "generate" ? false : Boolean(currentImage?.base64);
+  const action = operation === "generate" ? "generate_image" : "edit_image";
+
+  return buildIntent({
+    operation: operation ?? (hasImage ? "edit" : "generate"),
+    hasImage,
+    request: {
+      text: userPrompt ?? "",
+      styleId: styleId ?? null,
+    },
+    analysis: {
+      targets: [],
+      action,
+      assumptions: [],
+      confidence: null,
+    },
+    protect: [],
     constraints: [],
-  };
+    metadata: {
+      createdAt: Date.now(),
+      source: "analyze.js@stub-v1",
+    },
+  });
 }
 
 module.exports = { analyzeRequest };
