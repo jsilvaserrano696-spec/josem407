@@ -1,9 +1,13 @@
 # AXION Intent Schema v1
 
-> Estado: definido en `src/core/intentSchema.js`, **no conectado al flujo real**. Ningún módulo
-> (`ipcHandlers.js`, `axionCore.js`, `analyze.js`, `director.js`, `inspector.js`,
-> `promptOptimizer.js`, `imageEditor.js`) lo importa ni lo consume todavía. Este documento describe
-> el contrato de datos objetivo para cuando esas etapas dejen de ser stubs.
+> Estado: definido en `src/core/intentSchema.js` e **integrado en AXION CORE**. ANALYZE
+> (`analyze.js`) construye el Intent; DIRECTOR (`director.js`) lo recibe y lo normaliza de forma
+> neutral (sin decisión creativa real todavía); `axionCore.js` lo valida con fines diagnósticos
+> tras ANALYZE y tras DIRECTOR (nunca bloquea, nunca lo modifica). El Intent todavía no influye en
+> EXECUTE (`imageEditor.js`), en las llamadas a Gemini ni en el resultado visual — sigue
+> exactamente el mismo flujo que antes de que el Intent existiera. `promptOptimizer.js` tampoco lo
+> consume aún. Este documento describe el contrato de datos completo, incluyendo campos y
+> comportamiento objetivo que las etapas todavía no implementan como lógica real.
 
 ## Finalidad
 

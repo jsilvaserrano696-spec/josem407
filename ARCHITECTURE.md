@@ -40,30 +40,69 @@ API key never leaves the main process.
 | `src/services/imageImport` | Format detection + in-memory conversion (e.g. HEIC→PNG) — see [Image Import Pipeline](#image-import-pipeline) below |
 | `ui/scripts`       | Renderer: `app.js` orchestrates, `components/*` render + wire specific UI pieces, `state/appState.js` is a tiny observable store |
 
-## AXION CORE (base structural, not wired in yet)
+## AXION CORE (Intent-based pipeline, wired into the real edit/generate flow)
 
-`src/core/` is the seam for AXION's internal pipeline — ANALYZE → DIRECTOR → PROMPT ENGINE →
-EXECUTE → INSPECTOR. As of this writing it exists only as an isolated, importable set of modules:
-**nothing in `ipcHandlers.js` or `app.js` calls it yet**, and the real edit/generate flow is
-unchanged — it still calls `src/gemini/imageEditor.js` and `src/gemini/promptOptimizer.js`
-directly, exactly as before.
+`src/core/` is AXION's internal pipeline — ANALYZE → DIRECTOR → PROMPT ENGINE → EXECUTE →
+INSPECTOR — and it now runs on every real edit and generation: `src/main/ipcHandlers.js`'s
+`IMAGE_EDIT` and `IMAGE_GENERATE` handlers call `axionCore.runEditPipeline()` /
+`runGeneratePipeline()` instead of calling `src/gemini/imageEditor.js` directly.
 
-| Module                  | Responsibility (v0)                                                                                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/core/analyze.js`    | Stub. Shapes `{ subject, intent, hasImage, styleId, constraints }` from a request — no Gemini call, no real analysis yet.                                       |
-| `src/core/director.js`   | Stub. Passes the chosen style through as `{ styleId, priorities, notes }` — no creative decision-making yet.                                                    |
-| `src/core/inspector.js`  | Stub. Returns `{ passed: true, score: null, notes: [] }` for any result; logs via `editDebugLogger` only when Developer Mode (`configStore`) is on, and never throws. |
-| `src/core/axionCore.js`  | Orchestrator. `runEditPipeline()` / `runGeneratePipeline()` run ANALYZE → DIRECTOR → EXECUTE (delegating to `imageEditor.js`, unchanged) → INSPECTOR, with each non-EXECUTE stage wrapped in its own try/catch so a stub failure can never break a real edit. |
+| Module                  | Responsibility (current)                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| `src/core/analyze.js`    | Stub — no Gemini call. Builds a schema-shaped Intent (`buildIntent()`) from the request: `operation`/`hasImage` passed in by `axionCore.js` (never inferred), `analysis.action` a fixed placeholder, `analysis.targets`/`protect`/`constraints` empty. |
+| `src/core/director.js`   | Stub. Normalizes whatever Intent ANALYZE produced and fills only `direction.styleId` (carried from `request.styleId`) — no creative decision-making yet. |
+| `src/core/inspector.js`  | Stub. Always returns `{ passed: true, score: null, notes: [] }`; logs via `editDebugLogger` only when Developer Mode (`configStore`) is on, never throws. Now receives the full Intent (not separate analysis/direction objects), but doesn't act on it differently. |
+| `src/core/axionCore.js`  | Orchestrator. Builds/carries the Intent through ANALYZE → DIRECTOR, calls EXECUTE unchanged, then INSPECTOR. See subsections below for the Intent journey, fallbacks and diagnostic validation. |
 
-PROMPT ENGINE (`src/prompts`, `promptOptimizer.js`), EXECUTE (`imageEditor.js`), HISTORY
-(`historyStore.js`) and CONFIG (`configStore.js`) are reused as-is — CORE calls into them, it
-doesn't duplicate them. Wiring `axionCore` into the real IPC handlers is a deliberate later step,
-done once the stubs are replaced with real logic.
+### Intent journey
 
-`src/core/intentSchema.js` defines the **AXION Intent Schema v1**, the internal data contract
-ANALYZE/DIRECTOR/PROMPT ENGINE/EXECUTE/INSPECTOR will eventually share instead of re-parsing
-natural language at each stage — not connected to any real module yet. See
-[AXION_INTENT_SCHEMA.md](./AXION_INTENT_SCHEMA.md) for the full field reference and examples.
+```
+ipcHandlers.js (IMAGE_EDIT / IMAGE_GENERATE)
+  → axionCore.runEditPipeline() / runGeneratePipeline()
+      → ANALYZE   (analyze.js#analyzeRequest)   builds the Intent
+      → [diagnostic validation]
+      → DIRECTOR  (director.js#decideDirection) normalizes it, fills direction.*
+      → [diagnostic validation]
+      → EXECUTE   (imageEditor.js, unchanged)   — Intent does NOT reach this stage
+      → INSPECTOR (inspector.js#inspectResult)  reads the Intent + resultMeta, decides nothing
+```
+
+### Fallbacks (ANALYZE / DIRECTOR)
+
+`safeStage()` wraps ANALYZE and DIRECTOR (never EXECUTE) in try/catch:
+- **ANALYZE throws** → falls back to `fallbackIntent()`, a minimal but schema-valid Intent built
+  with the same `buildIntent()` normalizer (`operation`/`hasImage`/`request.text`/`request.styleId`,
+  `metadata.source: "axionCore@fallback"`).
+- **DIRECTOR throws** → falls back to the pre-DIRECTOR Intent unchanged.
+
+### Diagnostic Intent validation
+
+After ANALYZE and after DIRECTOR, `validateIntentForDiagnostics()` calls `validateIntent()`
+(`intentSchema.js`). Diagnostics only: never blocks, never throws, never modifies the Intent.
+Logs nothing when valid; when invalid, logs stage/error count/sanitized errors — never the Intent,
+prompt or image data. Errors pass through `sanitizeValidationError()` first, which drops the
+actual offending value (everything from `", got "` onward). If `validateIntent()` itself throws,
+that's caught and logged as a generic notice. Unlike INSPECTOR's stub logging, this is **not**
+gated on Developer Mode — `editDebugLogger` (temporary/always-on, see
+`src/debug/editDebugLogger.js`) logs unconditionally.
+
+### EXECUTE stays decoupled from the Intent
+
+`imageEditor.js` is called with exactly the same arguments `ipcHandlers.js` used to pass it
+directly — `prompt`/`currentImage`/`originalImage` or `prompt` — nothing else. Neither the Intent
+nor the DIRECTOR-normalized Intent ever reaches these calls.
+
+### What did not change
+
+`src/prompts`/`promptOptimizer.js` (PROMPT ENGINE, still a separate user-triggered IPC call),
+`src/gemini/imageEditor.js` (EXECUTE), every renderer module under `ui/`, and
+`src/history/historyStore.js` (`historyStore.addEntry()` still called right after the pipeline
+call, same `{ prompt: displayPrompt, styleId }` shape) are all unchanged.
+
+`src/core/intentSchema.js` defines the **AXION Intent Schema v1** and is now consumed by
+`analyze.js`, `director.js` and `axionCore.js` (not yet by `promptOptimizer.js` or
+`imageEditor.js`). See [AXION_INTENT_SCHEMA.md](./AXION_INTENT_SCHEMA.md) for the full field
+reference and examples.
 
 ## Version history & Undo/Redo
 
