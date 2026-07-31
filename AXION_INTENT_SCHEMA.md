@@ -5,10 +5,14 @@
 > (`director.js`) lo recibe y decide `direction.priorities`/`direction.notes` con reglas
 > deterministas locales, también sin llamada a Gemini; `axionCore.js` lo valida con fines diagnósticos
 > tras ANALYZE y tras DIRECTOR (nunca bloquea, nunca lo modifica). El Intent todavía no influye en
-> EXECUTE (`imageEditor.js`), en las llamadas a Gemini ni en el resultado visual — sigue
-> exactamente el mismo flujo que antes de que el Intent existiera. `promptOptimizer.js` tampoco lo
-> consume aún. Este documento describe el contrato de datos completo, incluyendo campos y
-> comportamiento objetivo que las etapas todavía no implementan como lógica real.
+> EXECUTE (`imageEditor.js`) ni en el resultado visual — sigue exactamente el mismo flujo que
+> antes de que el Intent existiera. `promptOptimizer.js` (PROMPT ENGINE) construye y usa su
+> **propio** Intent local, en una llamada IPC separada e independiente de este pipeline — nunca lo
+> comparte ni lo persiste. Dentro de esa llamada, únicamente `protect` (`source:"user"`) y
+> `constraints` ya influyen en el fraseo del meta-prompt que optimiza la instrucción antes de
+> enviarla a Gemini, sin añadir una segunda llamada. Este documento describe el contrato de datos
+> completo, incluyendo campos y comportamiento objetivo que las etapas todavía no implementan
+> como lógica real.
 
 ## Finalidad
 
@@ -21,14 +25,14 @@ y, cuando exista, metadatos ligeros, siguiendo el mismo criterio que ya aplica
 
 ## Responsabilidades por módulo
 
-ANALYZE, DIRECTOR e INSPECTOR ya están implementados (v1, deterministas, locales — ver
-ARCHITECTURE.md); PROMPT ENGINE sigue siendo diseño objetivo, no implementado.
+ANALYZE, DIRECTOR, INSPECTOR y PROMPT ENGINE ya están implementados (v1, deterministas/locales en
+la parte que usan del Intent — ver ARCHITECTURE.md).
 
 | Módulo | Qué produce/lee en el Intent |
 |---|---|
 | **ANALYZE** | Puebla `analysis.*` a partir de `request.*` (que nunca toca). Nunca escribe en `direction`. |
 | **DIRECTOR** | Puebla `direction.*` a partir de `analysis.*`/`protect`/`constraints`. La forma permite además "refinar `protect`/`constraints` heredados de ANALYZE" — **v1 no ejerce esa capacidad**: solo escribe `direction`, nunca `request`, `analysis`, `protect` ni `constraints`. |
-| **PROMPT ENGINE** (`promptOptimizer.js`) | Lee el Intent completo (cuando esté conectado) para construir el prompt final de Gemini; no lo modifica. |
+| **PROMPT ENGINE** (`promptOptimizer.js`) | Construye su **propio** Intent local dentro de su propia llamada (no el del pipeline de edición/generación) y lee únicamente `protect` (`source:"user"`) y `constraints` — nunca `targets`/`assumptions`/`confidence`/`direction`. No modifica el Intent; el resultado es una sección adicional, delimitada y citada, en su meta-prompt (ver ARCHITECTURE.md). |
 | **EXECUTE** (`imageEditor.js`) | No conoce el Intent — solo recibe `prompt`/`currentImage`/`originalImage`, exactamente como hoy. |
 | **INSPECTOR** | Solo verifica la **validez estructural** del Intent (`validateIntent()`) y lee `operation` para etiquetar la etapa — **no lee** `protect`/`constraints`/`analysis`/`direction` para juzgar si el resultado los cumplió; esa verificación semántica sigue sin implementarse (requeriría comprensión visual, fuera de alcance de v1). No modifica el Intent; produce únicamente su propio reporte interno, que `axionCore.js` descarta. |
 
@@ -269,3 +273,8 @@ chequeo de presencia aparte.
   aproximado) — no comprueba fidelidad al prompt, cumplimiento de `targets`/`protect` ni calidad
   estética, y solo registra su propio reporte sanitizado (nunca el Intent completo) cuando el modo
   desarrollador está activo.
+- `promptOptimizer.js` (PROMPT ENGINE) construye su Intent de forma completamente independiente
+  del que recorre el pipeline de edición/generación — no hay transporte ni persistencia entre
+  ambos, son dos cómputos locales separados sobre el mismo texto. Solo usa `protect`
+  (`source:"user"`) y `constraints`; `targets`/`assumptions`/`confidence`/`direction` siguen sin
+  usarse ahí.

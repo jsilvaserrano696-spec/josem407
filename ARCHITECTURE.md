@@ -46,6 +46,9 @@ API key never leaves the main process.
 INSPECTOR — and it now runs on every real edit and generation: `src/main/ipcHandlers.js`'s
 `IMAGE_EDIT` and `IMAGE_GENERATE` handlers call `axionCore.runEditPipeline()` /
 `runGeneratePipeline()` instead of calling `src/gemini/imageEditor.js` directly.
+PROMPT ENGINE is named here for the concept, not the code layout: it lives outside `src/core/`
+(`src/gemini/promptOptimizer.js` + `src/prompts/`) and is **not** wired into this automatic
+sequence — see "PROMPT ENGINE reuses ANALYZE locally" below for what it actually does.
 
 | Module                  | Responsibility (current)                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
@@ -100,17 +103,39 @@ gated on Developer Mode — `editDebugLogger` (temporary/always-on, see
 directly — `prompt`/`currentImage`/`originalImage` or `prompt` — nothing else. Neither the Intent
 nor the DIRECTOR-normalized Intent ever reaches these calls.
 
+### PROMPT ENGINE reuses ANALYZE locally (v1)
+
+`src/gemini/promptOptimizer.js` remains a separate, user-triggered IPC call (`PROMPT_OPTIMIZE`) —
+never wired into `axionCore.js`'s pipeline, and there is no Intent shared or transported between
+the two: `optimizePrompt()` builds its **own local Intent** inside that same call, via the same
+`analyzeRequest()` ANALYZE itself uses (`src/core/analyze.js`), purely synchronous, no extra
+Gemini call. Only `protect` entries with `source:"user"` and known `constraints` codes are used
+(via `src/prompts/optimizerIntentBridge.js`) — never `targets`, `assumptions`, `confidence`, or
+`direction`. `currentImage` (when present) is passed to `analyzeRequest()` only to determine
+`hasImage`/`operation`, exactly as ANALYZE always does — its base64 content is never read
+further, logged, or forwarded by this new code.
+
+When there's something safe to report, it's appended to the meta-prompt
+(`optimizerPromptBuilder.js`) as one clearly delimited, explicitly-quoted-as-data section, after
+everything else — `userPrompt` itself stays complete and unchanged, still quoted verbatim as
+before. If nothing safe is found, or if ANALYZE/the bridge fail for any reason, the section is
+omitted and the meta-prompt falls back to exactly what it would be without this addition — still
+exactly one call to Gemini, same as before. `ui/app.js`'s call sequence (`optimizePrompt()` then
+`editImage()`/`generateImage()`) and its status messages are unchanged; EXECUTE and the automatic
+pipeline above stay fully decoupled from this optimization step.
+
 ### What did not change
 
-`src/prompts`/`promptOptimizer.js` (PROMPT ENGINE, still a separate user-triggered IPC call),
-`src/gemini/imageEditor.js` (EXECUTE), every renderer module under `ui/`, and
-`src/history/historyStore.js` (`historyStore.addEntry()` still called right after the pipeline
-call, same `{ prompt: displayPrompt, styleId }` shape) are all unchanged.
+`src/gemini/imageEditor.js` (EXECUTE), every renderer module under `ui/`, `src/preload/preload.js`,
+`src/shared/ipcChannels.js`, and `src/history/historyStore.js` (`historyStore.addEntry()` still
+called right after the pipeline call, same `{ prompt: displayPrompt, styleId }` shape) are all
+unchanged. `promptOptimizer.js`'s own IPC contract (`PROMPT_OPTIMIZE`'s request/response shape) is
+also unchanged — see "PROMPT ENGINE reuses ANALYZE locally" above for what changed internally.
 
 `src/core/intentSchema.js` defines the **AXION Intent Schema v1** and is now consumed by
-`analyze.js`, `director.js` and `axionCore.js` (not yet by `promptOptimizer.js` or
-`imageEditor.js`). See [AXION_INTENT_SCHEMA.md](./AXION_INTENT_SCHEMA.md) for the full field
-reference and examples.
+`analyze.js`, `director.js`, `axionCore.js` and, locally and independently, `promptOptimizer.js`
+(not yet by `imageEditor.js`). See [AXION_INTENT_SCHEMA.md](./AXION_INTENT_SCHEMA.md) for the full
+field reference and examples.
 
 ## Version history & Undo/Redo
 
