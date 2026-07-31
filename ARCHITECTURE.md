@@ -40,15 +40,34 @@ API key never leaves the main process.
 | `src/services/imageImport` | Format detection + in-memory conversion (e.g. HEIC→PNG) — see [Image Import Pipeline](#image-import-pipeline) below |
 | `ui/scripts`       | Renderer: `app.js` orchestrates, `components/*` render + wire specific UI pieces, `state/appState.js` is a tiny observable store |
 
+## Localized user-facing strings
+
+`src/shared/localeStrings.js` is a pure, Electron/config-agnostic loader:
+`loadLocaleStrings(locale)` reads `ui/locales/{locale}.json`, falling back to `es.json`
+internally if that locale's own file fails to load. It knows nothing about configuration,
+Electron, or `src/services`.
+
+`src/services/currentLocaleStrings.js` sits one layer above it and depends on it
+(`services → shared`, never the reverse): it reads the user's configured language via
+`configStore.getSettings()`, then calls the pure loader above. If reading configuration
+fails, it falls back to `"es"`; if the pure loader's own fallback also fails (both the
+requested locale and `es.json` are unavailable), it returns a small, never-logged internal
+fallback covering only the validation-error keys the Gemini modules below throw — so a
+validation error can never resolve to `Error(undefined)`.
+
+`src/gemini/geminiClient.js`, `imageEditor.js`, `promptOptimizer.js` and
+`voiceTranscriber.js` all consume `currentStrings()` from `services/` for their
+user-facing error messages — never the pure loader directly.
+
 ## AXION CORE (Intent-based pipeline, wired into the real edit/generate flow)
 
-`src/core/` is AXION's internal pipeline — ANALYZE → DIRECTOR → PROMPT ENGINE → EXECUTE →
-INSPECTOR — and it now runs on every real edit and generation: `src/main/ipcHandlers.js`'s
-`IMAGE_EDIT` and `IMAGE_GENERATE` handlers call `axionCore.runEditPipeline()` /
-`runGeneratePipeline()` instead of calling `src/gemini/imageEditor.js` directly.
-PROMPT ENGINE is named here for the concept, not the code layout: it lives outside `src/core/`
-(`src/gemini/promptOptimizer.js` + `src/prompts/`) and is **not** wired into this automatic
-sequence — see "PROMPT ENGINE reuses ANALYZE locally" below for what it actually does.
+`src/core/` is AXION's internal pipeline — ANALYZE → DIRECTOR → EXECUTE → INSPECTOR — and it
+now runs on every real edit and generation: `src/main/ipcHandlers.js`'s `IMAGE_EDIT` and
+`IMAGE_GENERATE` handlers call `axionCore.runEditPipeline()` / `runGeneratePipeline()` instead
+of calling `src/gemini/imageEditor.js` directly.
+PROMPT ENGINE (`src/gemini/promptOptimizer.js` + `src/prompts/`) lives outside `src/core/` and
+is **not** an automatic stage of this pipeline — it's a separate, user-triggered IPC call — see
+"PROMPT ENGINE reuses ANALYZE locally" below for what it actually does.
 
 | Module                  | Responsibility (current)                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
