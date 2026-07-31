@@ -51,7 +51,7 @@ INSPECTOR — and it now runs on every real edit and generation: `src/main/ipcHa
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
 | `src/core/analyze.js`    | Deterministic local interpretation — still no Gemini call. Classifies `analysis.action` from a closed set of edit/generate actions via regex-based rules (`analyzeHeuristics.js`/`analyzeVocabulary.js`), extracts `targets`/`protect`/`constraints` from the user's own text, and scores `analysis.confidence` (always numeric when it completes; lower when ambiguous or contradictory). Coarse by design — bounded-window phrase capture, not semantic understanding; see the module's own comments for exact rules/limits. |
 | `src/core/director.js`   | Deterministic local decision — still no Gemini call. Computes `direction.priorities`/`direction.notes` from `analysis.*`/`protect`/`constraints` using a closed vocabulary (`directorVocabulary.js`/`directorHeuristics.js`): conservative reordering under low confidence or a detected contradiction, `explicit_user_protection` always first when the user protected anything explicitly. Only ever writes `direction`; an invalid Intent is returned unchanged, with no repair attempt. |
-| `src/core/inspector.js`  | Stub. Always returns `{ passed: true, score: null, notes: [] }`; logs via `editDebugLogger` only when Developer Mode (`configStore`) is on, never throws. Now receives the full Intent (not separate analysis/direction objects), but doesn't act on it differently. |
+| `src/core/inspector.js`  | Deterministic local structural check — still no Gemini call, no image decoding. Inspects only `resultMeta` (`{ mimeType, bytes }`, never the real image bytes) and the Intent's own validity/`operation`: shape, known `mimeType`, a minimum-plausible-size warning (never an error) — see `inspectorHeuristics.js`/`inspectorVocabulary.js`. The report is purely diagnostic: `axionCore.js` discards its return value and returns EXECUTE's result unchanged regardless of what it says; logs only the sanitized report (never the Intent/resultMeta) when Developer Mode is on, never throws. |
 | `src/core/axionCore.js`  | Orchestrator. Builds/carries the Intent through ANALYZE → DIRECTOR, calls EXECUTE unchanged, then INSPECTOR. See subsections below for the Intent journey, fallbacks and diagnostic validation. |
 
 ### Intent journey
@@ -67,9 +67,9 @@ ipcHandlers.js (IMAGE_EDIT / IMAGE_GENERATE)
       → INSPECTOR (inspector.js#inspectResult)  reads the Intent + resultMeta, decides nothing
 ```
 
-### Fallbacks (ANALYZE / DIRECTOR)
+### Fallbacks (ANALYZE / DIRECTOR / INSPECTOR)
 
-`safeStage()` wraps ANALYZE and DIRECTOR (never EXECUTE) in try/catch:
+`safeStage()` wraps ANALYZE, DIRECTOR and INSPECTOR (never EXECUTE) in try/catch:
 - **ANALYZE throws** → falls back to `fallbackIntent()`, a minimal but schema-valid Intent built
   with the same `buildIntent()` normalizer (`operation`/`hasImage`/`request.text`/`request.styleId`,
   `metadata.source: "axionCore@fallback"`).
@@ -77,6 +77,11 @@ ipcHandlers.js (IMAGE_EDIT / IMAGE_GENERATE)
 - `decideDirection()` also has its own internal gate, independent of `safeStage()`: if the Intent
   it receives fails `validateIntent()`, it returns that Intent completely unchanged (same
   reference) rather than attempting any repair — one more layer beneath the outer try/catch.
+- `inspectResult()` has the same kind of internal safety net: its own try/catch around the
+  structural check itself (falling back to a fixed `inspection_error` report) and around its own
+  Developer Mode logging, so an unexpected internal failure there practically never needs
+  `safeStage()`'s outer catch to begin with — and even if it did, INSPECTOR's return value is
+  already discarded, so nothing downstream would be affected either way.
 
 ### Diagnostic Intent validation
 

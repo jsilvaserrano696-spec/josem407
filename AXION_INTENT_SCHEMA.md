@@ -21,8 +21,8 @@ y, cuando exista, metadatos ligeros, siguiendo el mismo criterio que ya aplica
 
 ## Responsabilidades por módulo
 
-ANALYZE y DIRECTOR ya están implementados (v1, deterministas, locales — ver ARCHITECTURE.md);
-PROMPT ENGINE e INSPECTOR siguen siendo diseño objetivo, no implementado.
+ANALYZE, DIRECTOR e INSPECTOR ya están implementados (v1, deterministas, locales — ver
+ARCHITECTURE.md); PROMPT ENGINE sigue siendo diseño objetivo, no implementado.
 
 | Módulo | Qué produce/lee en el Intent |
 |---|---|
@@ -30,7 +30,7 @@ PROMPT ENGINE e INSPECTOR siguen siendo diseño objetivo, no implementado.
 | **DIRECTOR** | Puebla `direction.*` a partir de `analysis.*`/`protect`/`constraints`. La forma permite además "refinar `protect`/`constraints` heredados de ANALYZE" — **v1 no ejerce esa capacidad**: solo escribe `direction`, nunca `request`, `analysis`, `protect` ni `constraints`. |
 | **PROMPT ENGINE** (`promptOptimizer.js`) | Lee el Intent completo (cuando esté conectado) para construir el prompt final de Gemini; no lo modifica. |
 | **EXECUTE** (`imageEditor.js`) | No conoce el Intent — solo recibe `prompt`/`currentImage`/`originalImage`, exactamente como hoy. |
-| **INSPECTOR** | Lee `protect`/`constraints`/`analysis`/`direction` para verificar el resultado; no modifica el Intent, solo produce su propio reporte. |
+| **INSPECTOR** | Solo verifica la **validez estructural** del Intent (`validateIntent()`) y lee `operation` para etiquetar la etapa — **no lee** `protect`/`constraints`/`analysis`/`direction` para juzgar si el resultado los cumplió; esa verificación semántica sigue sin implementarse (requeriría comprensión visual, fuera de alcance de v1). No modifica el Intent; produce únicamente su propio reporte interno, que `axionCore.js` descarta. |
 
 ## Tabla completa de campos
 
@@ -263,7 +263,9 @@ chequeo de presencia aparte.
   serializable a JSON, no que ya se guarde en ningún sitio.
 - `validateIntent()` es una validación escrita a mano, sin librería externa (restricción
   explícita del proyecto) — crecerá en complejidad manualmente si el esquema se amplía.
-- El esquema está conectado al flujo real vía `axionCore.js`; `analyze.js` y `director.js` ya
-  implementan lógica determinista real (ver ARCHITECTURE.md). `inspector.js` sigue siendo un
-  stub — no implementa lógica real, no verifica el resultado, y solo registra el Intent con fines
-  diagnósticos cuando el modo desarrollador está activo.
+- El esquema está conectado al flujo real vía `axionCore.js`; `analyze.js`, `director.js` e
+  `inspector.js` ya implementan lógica determinista real (ver ARCHITECTURE.md). La verificación de
+  `inspector.js` es puramente **estructural** (forma del resultado, `mimeType`, tamaño
+  aproximado) — no comprueba fidelidad al prompt, cumplimiento de `targets`/`protect` ni calidad
+  estética, y solo registra su propio reporte sanitizado (nunca el Intent completo) cuando el modo
+  desarrollador está activo.
