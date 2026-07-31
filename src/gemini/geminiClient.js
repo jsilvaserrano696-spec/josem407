@@ -21,7 +21,12 @@ class MissingApiKeyError extends Error {
 }
 
 function getClient() {
-  const apiKey = configStore.getApiKey();
+  // Trimmed so accidental leading/trailing whitespace (a common copy-paste artifact when pasting
+  // into Settings) neither slips past the empty-key check below nor causes the same key, pasted
+  // with vs. without surrounding spaces, to be treated as "different" for caching purposes. Real
+  // Google API keys never carry meaningful leading/trailing whitespace, so this can't break a
+  // legitimate key.
+  const apiKey = configStore.getApiKey()?.trim();
   if (!apiKey) {
     throw new MissingApiKeyError();
   }
@@ -39,13 +44,40 @@ function resetClient() {
   cachedApiKey = null;
 }
 
+// Closed, sanitized categories for the diagnostic log below — never the provider's raw message.
+const ERROR_CATEGORY = {
+  AUTH: "auth",
+  RATE_LIMIT: "rate_limit",
+  SERVER_ERROR: "server_error",
+  CLIENT_ERROR: "client_error",
+  UNKNOWN: "unknown",
+};
+
+function categorizeApiErrorStatus(status) {
+  if (status === 401 || status === 403) return ERROR_CATEGORY.AUTH;
+  if (status === 429) return ERROR_CATEGORY.RATE_LIMIT;
+  if (typeof status === "number" && status >= 500) return ERROR_CATEGORY.SERVER_ERROR;
+  if (typeof status === "number" && status >= 400) return ERROR_CATEGORY.CLIENT_ERROR;
+  return ERROR_CATEGORY.UNKNOWN;
+}
+
+// `error.status` is read through here, once, so a hostile/broken getter can never escape this
+// module uncaught — degrades to `undefined` (-> ERROR_CATEGORY.UNKNOWN below), never propagates.
+function safeReadStatus(error) {
+  try {
+    return error.status;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
- * Turns the SDK's ApiError — whose `.message` is a raw JSON error envelope straight from
- * Google's API (e.g. `{"error":{"code":401,"message":"...","status":"UNAUTHENTICATED"}}`) —
- * into a short, generic, localized Error safe to show in the status bar (see
- * DESIGN_PHILOSOPHY.md: no API detail, status code, or model name ever reaches the user). The
- * real technical detail is only ever logged for developer mode, never returned. Anything that
- * isn't an ApiError is returned unchanged, so callers can always do
+ * Turns the SDK's ApiError into a short, generic, localized Error safe to show in the status bar
+ * (see DESIGN_PHILOSOPHY.md: no API detail, status code, or model name ever reaches the user).
+ * The diagnostic log only ever carries `status` (a plain HTTP/API status code) and a closed
+ * `category` derived from it — never `.message`, `.stack`, `.details`, `.cause`, or the error
+ * object itself, since the provider's raw text could in principle echo back something sensitive.
+ * Anything that isn't an ApiError is returned unchanged, so callers can always do
  * `catch (error) { throw describeGeminiError(error); }` without risking double-wrapping
  * already-clear errors (missing prompt, missing API key, etc).
  */
@@ -54,16 +86,11 @@ function describeGeminiError(error) {
     return error;
   }
 
-  let detail = error.message;
-  try {
-    detail = JSON.parse(error.message)?.error?.message || detail;
-  } catch {
-    // error.message wasn't JSON after all — fall back to it as-is.
-  }
-  editDebugLogger.log("Gemini API error (developer mode detail)", { status: error.status, detail });
+  const status = safeReadStatus(error);
+  editDebugLogger.log("Gemini API error", { status, category: categorizeApiErrorStatus(status) });
 
   const strings = currentStrings();
-  if (error.status === 401 || error.status === 403) {
+  if (status === 401 || status === 403) {
     return new Error(strings["error.invalidApiKey"]);
   }
 
