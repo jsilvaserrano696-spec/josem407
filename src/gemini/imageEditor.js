@@ -6,7 +6,7 @@
 // explicitly on every edit. That's what makes Undo/Redo free (no Gemini call, no tokens) and
 // correct even after editing from a past version — there's no session to fall out of sync with
 // what's actually on screen.
-const { getClient, describeGeminiError } = require("./geminiClient");
+const geminiClient = require("./geminiClient");
 const configStore = require("../services/configStore");
 const { loadLocaleStrings } = require("../shared/localeStrings");
 const editDebugLogger = require("../debug/editDebugLogger");
@@ -54,7 +54,7 @@ async function editImage({ prompt, currentImage, originalImage }) {
     throw new Error("A source image is required to start an edit.");
   }
 
-  const ai = getClient();
+  const ai = geminiClient.getClient();
   const messageParts = [
     { text: prompt },
     { text: "Reference image A — current state, build the requested change on top of this:" },
@@ -85,7 +85,7 @@ async function editImage({ prompt, currentImage, originalImage }) {
     return extractImageFromResponse(response);
   } catch (error) {
     editDebugLogger.logError("editImage() failed", error);
-    throw describeGeminiError(error);
+    throw geminiClient.describeGeminiError(error);
   }
 }
 
@@ -100,7 +100,7 @@ async function generateImage({ prompt }) {
     throw new Error("Prompt must not be empty.");
   }
 
-  const ai = getClient();
+  const ai = geminiClient.getClient();
   const messageParts = [{ text: prompt }];
 
   const startedAt = Date.now();
@@ -110,7 +110,7 @@ async function generateImage({ prompt }) {
     return extractImageFromResponse(response);
   } catch (error) {
     editDebugLogger.logError("generateImage() failed", error);
-    throw describeGeminiError(error);
+    throw geminiClient.describeGeminiError(error);
   }
 }
 
