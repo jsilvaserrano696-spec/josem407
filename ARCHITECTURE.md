@@ -49,8 +49,8 @@ INSPECTOR — and it now runs on every real edit and generation: `src/main/ipcHa
 
 | Module                  | Responsibility (current)                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `src/core/analyze.js`    | Stub — no Gemini call. Builds a schema-shaped Intent (`buildIntent()`) from the request: `operation`/`hasImage` passed in by `axionCore.js` (never inferred), `analysis.action` a fixed placeholder, `analysis.targets`/`protect`/`constraints` empty. |
-| `src/core/director.js`   | Stub. Normalizes whatever Intent ANALYZE produced and fills only `direction.styleId` (carried from `request.styleId`) — no creative decision-making yet. |
+| `src/core/analyze.js`    | Deterministic local interpretation — still no Gemini call. Classifies `analysis.action` from a closed set of edit/generate actions via regex-based rules (`analyzeHeuristics.js`/`analyzeVocabulary.js`), extracts `targets`/`protect`/`constraints` from the user's own text, and scores `analysis.confidence` (always numeric when it completes; lower when ambiguous or contradictory). Coarse by design — bounded-window phrase capture, not semantic understanding; see the module's own comments for exact rules/limits. |
+| `src/core/director.js`   | Deterministic local decision — still no Gemini call. Computes `direction.priorities`/`direction.notes` from `analysis.*`/`protect`/`constraints` using a closed vocabulary (`directorVocabulary.js`/`directorHeuristics.js`): conservative reordering under low confidence or a detected contradiction, `explicit_user_protection` always first when the user protected anything explicitly. Only ever writes `direction`; an invalid Intent is returned unchanged, with no repair attempt. |
 | `src/core/inspector.js`  | Stub. Always returns `{ passed: true, score: null, notes: [] }`; logs via `editDebugLogger` only when Developer Mode (`configStore`) is on, never throws. Now receives the full Intent (not separate analysis/direction objects), but doesn't act on it differently. |
 | `src/core/axionCore.js`  | Orchestrator. Builds/carries the Intent through ANALYZE → DIRECTOR, calls EXECUTE unchanged, then INSPECTOR. See subsections below for the Intent journey, fallbacks and diagnostic validation. |
 
@@ -74,6 +74,9 @@ ipcHandlers.js (IMAGE_EDIT / IMAGE_GENERATE)
   with the same `buildIntent()` normalizer (`operation`/`hasImage`/`request.text`/`request.styleId`,
   `metadata.source: "axionCore@fallback"`).
 - **DIRECTOR throws** → falls back to the pre-DIRECTOR Intent unchanged.
+- `decideDirection()` also has its own internal gate, independent of `safeStage()`: if the Intent
+  it receives fails `validateIntent()`, it returns that Intent completely unchanged (same
+  reference) rather than attempting any repair — one more layer beneath the outer try/catch.
 
 ### Diagnostic Intent validation
 

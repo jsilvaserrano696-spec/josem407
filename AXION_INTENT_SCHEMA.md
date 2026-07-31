@@ -1,8 +1,9 @@
 # AXION Intent Schema v1
 
 > Estado: definido en `src/core/intentSchema.js` e **integrado en AXION CORE**. ANALYZE
-> (`analyze.js`) construye el Intent; DIRECTOR (`director.js`) lo recibe y lo normaliza de forma
-> neutral (sin decisión creativa real todavía); `axionCore.js` lo valida con fines diagnósticos
+> (`analyze.js`) construye el Intent mediante interpretación determinista local; DIRECTOR
+> (`director.js`) lo recibe y decide `direction.priorities`/`direction.notes` con reglas
+> deterministas locales, también sin llamada a Gemini; `axionCore.js` lo valida con fines diagnósticos
 > tras ANALYZE y tras DIRECTOR (nunca bloquea, nunca lo modifica). El Intent todavía no influye en
 > EXECUTE (`imageEditor.js`), en las llamadas a Gemini ni en el resultado visual — sigue
 > exactamente el mismo flujo que antes de que el Intent existiera. `promptOptimizer.js` tampoco lo
@@ -18,12 +19,15 @@ usuario") y nunca contiene datos de imagen en bruto (bytes/base64) — solo un b
 y, cuando exista, metadatos ligeros, siguiendo el mismo criterio que ya aplica
 `inspector.js`/`resultMeta`.
 
-## Responsabilidades por módulo (diseño objetivo, no implementado)
+## Responsabilidades por módulo
+
+ANALYZE y DIRECTOR ya están implementados (v1, deterministas, locales — ver ARCHITECTURE.md);
+PROMPT ENGINE e INSPECTOR siguen siendo diseño objetivo, no implementado.
 
 | Módulo | Qué produce/lee en el Intent |
 |---|---|
 | **ANALYZE** | Puebla `analysis.*` a partir de `request.*` (que nunca toca). Nunca escribe en `direction`. |
-| **DIRECTOR** | Puebla `direction.*` a partir de `analysis.*`. Puede refinar `protect`/`constraints` heredados de ANALYZE, pero no reescribe `request` ni `analysis`. |
+| **DIRECTOR** | Puebla `direction.*` a partir de `analysis.*`/`protect`/`constraints`. La forma permite además "refinar `protect`/`constraints` heredados de ANALYZE" — **v1 no ejerce esa capacidad**: solo escribe `direction`, nunca `request`, `analysis`, `protect` ni `constraints`. |
 | **PROMPT ENGINE** (`promptOptimizer.js`) | Lee el Intent completo (cuando esté conectado) para construir el prompt final de Gemini; no lo modifica. |
 | **EXECUTE** (`imageEditor.js`) | No conoce el Intent — solo recibe `prompt`/`currentImage`/`originalImage`, exactamente como hoy. |
 | **INSPECTOR** | Lee `protect`/`constraints`/`analysis`/`direction` para verificar el resultado; no modifica el Intent, solo produce su propio reporte. |
@@ -145,8 +149,10 @@ chequeo de presencia aparte.
   composición, cámara, narrativa…) no son campos del esquema — son valores de texto libre dentro
   de `analysis.targets`, `protect[].ref`/`.of` o `direction.priorities`. Añadir un eje nuevo no
   requiere tocar `intentSchema.js`.
-- **`action` como texto libre en v1:** cuando ANALYZE tenga lógica real, se podrá evaluar cerrar
-  el vocabulario a un enum — no es un cambio de forma, solo de validación.
+- **`action` sigue siendo texto libre a nivel de schema** (sin enum en `validateIntent()`), aunque
+  ANALYZE ya tiene lógica real: internamente solo emite un conjunto cerrado de valores (ver
+  `src/core/analyzeVocabulary.js`), pero el campo del Intent no lo impone — cerrar el vocabulario
+  a nivel de schema sigue siendo una opción futura, no un cambio de forma.
 - **`priority` en `ProtectEntry`:** ver arriba — punto de extensión identificado, no implementado.
 - **Persistencia en Historial:** `historyStore.js` no guarda el Intent hoy
   (`{id, prompt, styleId, timestamp, favorite}`). El Intent es JSON plano por diseño,
@@ -156,6 +162,12 @@ chequeo de presencia aparte.
   consumidores futuros pueden ramificar por versión en vez de asumir siempre la última forma.
 
 ## Los cinco ejemplos
+
+> Nota: estos cinco ejemplos ilustran la **forma** del contrato y son anteriores a ANALYZE v1/
+> DIRECTOR v1. Los valores concretos de `analysis.action` y `direction.priorities` que se muestran
+> aquí (p. ej. `"increase_realism"`, `"materials"`) no son necesariamente los que la implementación
+> real produce hoy — ver `src/core/analyzeVocabulary.js` y `src/core/directorVocabulary.js` para el
+> vocabulario cerrado vigente.
 
 ### 1. Mejorar el realismo de un castillo sin cambiar personajes
 
@@ -251,6 +263,7 @@ chequeo de presencia aparte.
   serializable a JSON, no que ya se guarde en ningún sitio.
 - `validateIntent()` es una validación escrita a mano, sin librería externa (restricción
   explícita del proyecto) — crecerá en complejidad manualmente si el esquema se amplía.
-- El esquema no está conectado a `axionCore.js` ni a ningún flujo real; `analyze.js`, `director.js`
-  e `inspector.js` siguen sin implementar lógica real y no producen ni consumen este Intent
-  todavía.
+- El esquema está conectado al flujo real vía `axionCore.js`; `analyze.js` y `director.js` ya
+  implementan lógica determinista real (ver ARCHITECTURE.md). `inspector.js` sigue siendo un
+  stub — no implementa lógica real, no verifica el resultado, y solo registra el Intent con fines
+  diagnósticos cuando el modo desarrollador está activo.
