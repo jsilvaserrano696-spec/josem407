@@ -90,6 +90,11 @@
   "error.imageGenerationFailed": "Couldn't generate the image. Please try again.",
   "error.unsupportedFormat": "That file type isn't supported. Try a JPG, PNG, WebP, or HEIC image.",
   "error.corruptImage": "Couldn't open this image. It may be corrupted or in an unsupported format.",
+  "error.emptyPrompt": "The instruction text must not be empty.",
+  "error.missingSourceImage": "A source image is required to edit.",
+  "error.optimizationFailed": "Couldn't process your request. Please try again.",
+  "error.noAudioProvided": "No audio was received to transcribe.",
+  "error.unsupportedAudioFormat": "Unsupported audio format.",
 
   "style.photorealistic": "Photorealistic",
   "style.oil-painting": "Oil Painting",

@@ -6,6 +6,7 @@
 // imageEditor.js, same reasoning as promptOptimizer.js: transcription is a fast, cheap, text-out
 // task that has no business sharing a model/session with image editing.
 const geminiClient = require("./geminiClient");
+const { currentStrings } = require("../services/currentLocaleStrings");
 
 // Same fast text-capable alias promptOptimizer.js already uses — Flash models are natively
 // multimodal (text/image/audio), so no separate/heavier model is needed just for transcription.
@@ -36,7 +37,7 @@ function extractTranscript(response) {
  */
 async function transcribeAudio({ base64, mimeType }) {
   if (typeof base64 !== "string" || base64.length === 0) {
-    throw new Error("No audio data was provided to transcribe.");
+    throw new Error(currentStrings()["error.noAudioProvided"]);
   }
 
   // mimeType is optional (defaults to audio/wav, unvalidated, exactly as before) — but when the
@@ -47,7 +48,7 @@ async function transcribeAudio({ base64, mimeType }) {
   if (mimeType !== undefined && mimeType !== null) {
     const trimmedMimeType = typeof mimeType === "string" ? mimeType.trim() : mimeType;
     if (typeof trimmedMimeType !== "string" || trimmedMimeType.length === 0 || !trimmedMimeType.startsWith("audio/")) {
-      throw new Error("Unsupported audio format for transcription.");
+      throw new Error(currentStrings()["error.unsupportedAudioFormat"]);
     }
     resolvedMimeType = trimmedMimeType;
   }

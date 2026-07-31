@@ -229,20 +229,32 @@ test("15. ApiError (model/API error) is translated, never exposing the raw messa
   );
 });
 
-test("16. empty/whitespace prompt throws synchronously before calling Gemini (exact text not asserted)", async (t) => {
+test("16. empty/whitespace prompt throws synchronously before calling Gemini, with the localized message", async (t) => {
   const capture = newCapture();
   patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
 
-  await assert.rejects(() => editImage({ prompt: "", currentImage: { base64: "AAA", mimeType: "image/png" } }), Error);
+  await assert.rejects(
+    () => editImage({ prompt: "", currentImage: { base64: "AAA", mimeType: "image/png" } }),
+    (error) => {
+      assert.equal(error.message, "El texto de la instrucción no puede estar vacío.");
+      return true;
+    }
+  );
   await assert.rejects(() => generateImage({ prompt: "   " }), Error);
   assert.equal(capture.calls, 0);
 });
 
-test("17. missing currentImage/base64 in editImage throws before calling Gemini", async (t) => {
+test("17. missing currentImage/base64 in editImage throws before calling Gemini, with the localized message", async (t) => {
   const capture = newCapture();
   patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
 
-  await assert.rejects(() => editImage({ prompt: "x", currentImage: undefined }), Error);
+  await assert.rejects(
+    () => editImage({ prompt: "x", currentImage: undefined }),
+    (error) => {
+      assert.equal(error.message, "Se necesita una imagen de origen para editar.");
+      return true;
+    }
+  );
   await assert.rejects(() => editImage({ prompt: "x", currentImage: {} }), Error);
   assert.equal(capture.calls, 0);
 });

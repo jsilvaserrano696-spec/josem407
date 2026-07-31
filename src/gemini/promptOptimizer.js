@@ -25,6 +25,7 @@
 // tests — the same pattern already used in src/core/inspector.js — without any test-only branch
 // in this file.
 const geminiClient = require("./geminiClient");
+const { currentStrings } = require("../services/currentLocaleStrings");
 const { buildOptimizerMetaPrompt } = require("../prompts/optimizerPromptBuilder");
 const { getStyleById } = require("../styles/styleLibrary");
 const editDebugLogger = require("../debug/editDebugLogger");
@@ -52,7 +53,7 @@ function splitDiagnosisAndInstruction(rawText) {
 
 async function optimizePrompt({ userPrompt, styleId, priorEdits, currentImage }) {
   if (!userPrompt || !userPrompt.trim()) {
-    throw new Error("Cannot optimize an empty prompt.");
+    throw new Error(currentStrings()["error.emptyPrompt"]);
   }
 
   const style = styleId ? getStyleById(styleId) : null;
@@ -91,7 +92,7 @@ async function optimizePrompt({ userPrompt, styleId, priorEdits, currentImage })
 
   const raw = response.text?.trim();
   if (!raw) {
-    throw new Error("The prompt optimizer did not return any text.");
+    throw new Error(currentStrings()["error.optimizationFailed"]);
   }
 
   if (!hasImage) {
@@ -103,7 +104,7 @@ async function optimizePrompt({ userPrompt, styleId, priorEdits, currentImage })
     editDebugLogger.log("Image diagnosis (developer mode detail)", { diagnosis });
   }
   if (!instruction) {
-    throw new Error("The prompt optimizer did not return any text.");
+    throw new Error(currentStrings()["error.optimizationFailed"]);
   }
   return instruction;
 }

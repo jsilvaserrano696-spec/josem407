@@ -7,8 +7,7 @@
 // correct even after editing from a past version — there's no session to fall out of sync with
 // what's actually on screen.
 const geminiClient = require("./geminiClient");
-const configStore = require("../services/configStore");
-const { loadLocaleStrings } = require("../shared/localeStrings");
+const { currentStrings } = require("../services/currentLocaleStrings");
 const editDebugLogger = require("../debug/editDebugLogger");
 
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
@@ -24,8 +23,7 @@ function extractImageFromResponse(response) {
     editDebugLogger.log("Gemini returned no image (developer mode detail)", {
       modelText: textPart?.text ?? null,
     });
-    const strings = loadLocaleStrings(configStore.getSettings().language || "es");
-    throw new Error(strings["error.imageGenerationFailed"]);
+    throw new Error(currentStrings()["error.imageGenerationFailed"]);
   }
 
   return {
@@ -48,10 +46,10 @@ function extractImageFromResponse(response) {
  */
 async function editImage({ prompt, currentImage, originalImage }) {
   if (!prompt || !prompt.trim()) {
-    throw new Error("Prompt must not be empty.");
+    throw new Error(currentStrings()["error.emptyPrompt"]);
   }
   if (!currentImage?.base64) {
-    throw new Error("A source image is required to start an edit.");
+    throw new Error(currentStrings()["error.missingSourceImage"]);
   }
 
   const ai = geminiClient.getClient();
@@ -97,7 +95,7 @@ async function editImage({ prompt, currentImage, originalImage }) {
  */
 async function generateImage({ prompt }) {
   if (!prompt || !prompt.trim()) {
-    throw new Error("Prompt must not be empty.");
+    throw new Error(currentStrings()["error.emptyPrompt"]);
   }
 
   const ai = geminiClient.getClient();

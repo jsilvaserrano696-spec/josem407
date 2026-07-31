@@ -8,6 +8,7 @@ const { optimizePrompt } = require("./promptOptimizer");
 const geminiClient = require("./geminiClient");
 const analyze = require("../core/analyze");
 const optimizerIntentBridge = require("../prompts/optimizerIntentBridge");
+const { currentStrings } = require("../services/currentLocaleStrings");
 
 const originalGetClient = geminiClient.getClient;
 const originalAnalyzeRequest = analyze.analyzeRequest;
@@ -121,6 +122,34 @@ test("19. prompt-injection-shaped userPrompt stays quoted verbatim, never concat
   // clearly-labeled detected-elements section — never as a bare, unquoted, free-standing line.
   assert.ok(metaPrompt.includes('"fondo"'));
   assert.ok(!metaPrompt.includes("\nfondo\n"));
+});
+
+test("20. empty/whitespace userPrompt throws with the localized message, no Gemini call", async (t) => {
+  const capture = {};
+  patch(t, geminiClient, "getClient", () => fakeClient("Instrucción optimizada.", capture));
+
+  await assert.rejects(
+    () => optimizePrompt({ userPrompt: "   ", styleId: null, priorEdits: null, currentImage: undefined }),
+    (error) => {
+      assert.equal(error.message, currentStrings()["error.emptyPrompt"]);
+      return true;
+    }
+  );
+  assert.equal(capture.calls, undefined);
+});
+
+test("21. a Gemini response with no usable text throws with the localized message", async (t) => {
+  const capture = {};
+  patch(t, geminiClient, "getClient", () => fakeClient("   ", capture));
+
+  await assert.rejects(
+    () => optimizePrompt({ userPrompt: "Cambia el color del coche", styleId: null, priorEdits: null, currentImage: undefined }),
+    (error) => {
+      assert.equal(error.message, currentStrings()["error.optimizationFailed"]);
+      return true;
+    }
+  );
+  assert.equal(capture.calls, 1);
 });
 
 test("18. all patched dependencies are restored to their original references after every test", () => {

@@ -8,6 +8,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { transcribeAudio } = require("./voiceTranscriber");
 const geminiClient = require("./geminiClient");
+const { currentStrings } = require("../services/currentLocaleStrings");
 
 const originalGetClient = geminiClient.getClient;
 const originalDescribeGeminiError = geminiClient.describeGeminiError;
@@ -69,10 +70,17 @@ test("3. base64 not a string -> throws, zero calls to Gemini", async (t) => {
   assert.equal(capture.calls, 0);
 });
 
-test("4. base64 empty string -> throws, zero calls to Gemini", async (t) => {
+test("4. base64 empty string -> throws with the localized message, zero calls to Gemini", async (t) => {
   const capture = newCapture();
   patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: { text: "x" }, capture }));
 
+  await assert.rejects(
+    () => transcribeAudio({ base64: "" }),
+    (error) => {
+      assert.equal(error.message, currentStrings()["error.noAudioProvided"]);
+      return true;
+    }
+  );
   await assert.rejects(() => transcribeAudio({ base64: "" }), Error);
   assert.equal(capture.calls, 0);
 });
@@ -87,10 +95,17 @@ test("5. mimeType not a string -> throws, zero calls to Gemini", async (t) => {
   assert.equal(capture.calls, 0);
 });
 
-test("6. mimeType without 'audio/' prefix -> throws, zero calls to Gemini", async (t) => {
+test("6. mimeType without 'audio/' prefix -> throws with the localized message, zero calls to Gemini", async (t) => {
   const capture = newCapture();
   patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: { text: "x" }, capture }));
 
+  await assert.rejects(
+    () => transcribeAudio({ base64: "AAAA", mimeType: "video/mp4" }),
+    (error) => {
+      assert.equal(error.message, currentStrings()["error.unsupportedAudioFormat"]);
+      return true;
+    }
+  );
   await assert.rejects(() => transcribeAudio({ base64: "AAAA", mimeType: "video/mp4" }), Error);
   assert.equal(capture.calls, 0);
 });

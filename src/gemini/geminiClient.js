@@ -3,15 +3,11 @@
 // left holding an old key.
 const { GoogleGenAI, ApiError } = require("@google/genai");
 const configStore = require("../services/configStore");
-const { loadLocaleStrings } = require("../shared/localeStrings");
+const { currentStrings } = require("../services/currentLocaleStrings");
 const editDebugLogger = require("../debug/editDebugLogger");
 
 let cachedClient = null;
 let cachedApiKey = null;
-
-function currentStrings() {
-  return loadLocaleStrings(configStore.getSettings().language || "es");
-}
 
 class MissingApiKeyError extends Error {
   constructor() {

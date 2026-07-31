@@ -90,6 +90,11 @@
   "error.imageGenerationFailed": "No se ha podido generar la imagen. Inténtalo de nuevo.",
   "error.unsupportedFormat": "Ese tipo de archivo no es compatible. Prueba con una imagen en JPG, PNG, WebP o HEIC.",
   "error.corruptImage": "No se ha podido abrir esta imagen. Puede estar dañada o en un formato no compatible.",
+  "error.emptyPrompt": "El texto de la instrucción no puede estar vacío.",
+  "error.missingSourceImage": "Se necesita una imagen de origen para editar.",
+  "error.optimizationFailed": "No se ha podido interpretar tu petición. Inténtalo de nuevo.",
+  "error.noAudioProvided": "No se ha recibido ningún audio para transcribir.",
+  "error.unsupportedAudioFormat": "Formato de audio no compatible.",
 
   "style.photorealistic": "Fotorrealista",
   "style.oil-painting": "Óleo",
