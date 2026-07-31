@@ -10,10 +10,26 @@
 // asking the model to reason in two phases and return both, separated by a fixed marker. Only
 // the instruction half ever leaves this module; the diagnosis is developer-mode-only (see
 // DESIGN_PHILOSOPHY.md), logged for debugging and never surfaced in the UI.
-const { getClient, describeGeminiError } = require("./geminiClient");
+//
+// PROMPT ENGINE v1: this is a separate, user-triggered IPC call — there is no AXION Intent
+// available here (ANALYZE only runs later, inside axionCore.js's own IMAGE_EDIT/IMAGE_GENERATE
+// handling). Rather than transporting one across two independent IPC calls, a fresh local Intent
+// is computed here via the same deterministic `analyzeRequest()` ANALYZE itself uses — cheap,
+// synchronous, no Gemini call added. Only `protect` (`source:"user"`) and `constraints` are ever
+// used (via optimizerIntentBridge.js) — never `direction`/`targets`/`assumptions`/`confidence`.
+// If ANALYZE or the bridge fail for any reason, the meta-prompt falls back to exactly what it
+// would be without this enrichment — never blocks, never throws, still exactly one Gemini call.
+//
+// `geminiClient`/`analyze`/`optimizerIntentBridge` are called via their module namespace (not
+// destructured into local consts) so their exported functions remain replaceable in isolation by
+// tests — the same pattern already used in src/core/inspector.js — without any test-only branch
+// in this file.
+const geminiClient = require("./geminiClient");
 const { buildOptimizerMetaPrompt } = require("../prompts/optimizerPromptBuilder");
 const { getStyleById } = require("../styles/styleLibrary");
 const editDebugLogger = require("../debug/editDebugLogger");
+const analyze = require("../core/analyze");
+const optimizerIntentBridge = require("../prompts/optimizerIntentBridge");
 
 // The "-latest" alias tracks Google's current recommended fast text model, so this doesn't
 // need to be updated by hand every time a dated model version is deprecated for new projects.
@@ -41,14 +57,26 @@ async function optimizePrompt({ userPrompt, styleId, priorEdits, currentImage })
 
   const style = styleId ? getStyleById(styleId) : null;
   const hasImage = Boolean(currentImage?.base64);
+
+  let detectedElements = null;
+  try {
+    const intent = analyze.analyzeRequest({ userPrompt, currentImage, styleId });
+    detectedElements = optimizerIntentBridge.extractDetectedElements(intent);
+  } catch {
+    // ANALYZE (or the bridge) failing must never affect optimization — fall back to exactly the
+    // meta-prompt that would be built without this enrichment.
+    detectedElements = null;
+  }
+
   const metaPrompt = buildOptimizerMetaPrompt({
     userPrompt,
     styleFragment: style?.promptFragment ?? null,
     priorEdits: priorEdits ?? null,
     hasImage,
+    detectedElements,
   });
 
-  const ai = getClient();
+  const ai = geminiClient.getClient();
   let response;
   try {
     response = await ai.models.generateContent({
@@ -58,7 +86,7 @@ async function optimizePrompt({ userPrompt, styleId, priorEdits, currentImage })
         : metaPrompt,
     });
   } catch (error) {
-    throw describeGeminiError(error);
+    throw geminiClient.describeGeminiError(error);
   }
 
   const raw = response.text?.trim();
