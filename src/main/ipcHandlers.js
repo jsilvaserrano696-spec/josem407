@@ -16,7 +16,7 @@ const styleLibrary = require("../styles/styleLibrary");
 const promptTemplates = require("../prompts/promptTemplates");
 const historyStore = require("../history/historyStore");
 const clipboardImageService = require("../services/clipboardImageService");
-const { ensurePngBuffer } = require("../services/pngExportService");
+const { encodeImageForPath } = require("../services/imageExportService");
 const projectStore = require("../services/projectStore");
 const { buildAppMenu, loadMenuStrings } = require("./menu");
 // TEMP DEBUG — remove alongside src/debug/editDebugLogger.js.
@@ -81,8 +81,8 @@ function registerIpcHandlers() {
       return null;
     }
     const sourceBuffer = Buffer.from(base64, "base64");
-    const pngBuffer = ensurePngBuffer({ buffer: sourceBuffer, mimeType }, nativeImage);
-    await fileService.writeImageFile(savePath, pngBuffer);
+    const exportBuffer = encodeImageForPath({ buffer: sourceBuffer, mimeType, filePath: savePath }, nativeImage);
+    await fileService.writeImageFile(savePath, exportBuffer);
     return savePath;
   });
 

@@ -27,7 +27,10 @@ async function showSaveImageDialog(browserWindow, suggestedName = "edited-image.
   const result = await dialog.showSaveDialog(browserWindow, {
     title: "Save edited image",
     defaultPath: suggestedName,
-    filters: [{ name: "PNG Image", extensions: ["png"] }],
+    filters: [
+      { name: "PNG Image (maximum quality)", extensions: ["png"] },
+      { name: "JPEG Image (smaller file)", extensions: ["jpg", "jpeg"] },
+    ],
   });
   if (result.canceled || !result.filePath) {
     return null;
