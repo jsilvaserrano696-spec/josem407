@@ -2,7 +2,7 @@
 
 > **Estado: propuesta de diseño, sin implementar.** Este documento define la arquitectura antes de escribir ningún código. No modifica el comportamiento actual de la aplicación.
 >
-> **Nota:** el mecanismo base de este diseño —enviar varias imágenes en una misma llamada, cada una con un rol explícito señalado por texto— ya tiene una primera implementación real, aunque para un propósito distinto al descrito aquí: el "ancla de fidelidad" de `src/gemini/imageEditor.js` (ver `ARCHITECTURE.md`, sección "Fidelity anchor"), donde la imagen original se envía junto a la actual para frenar el deterioro acumulado de identidad. Este documento sigue sin implementar su propuesta de roles múltiples para composición (Matriz/Referencia como tal); solo el mecanismo de transporte de varias imágenes ya se usa en producción.
+> **Nota:** el mecanismo base de este diseño —enviar varias imágenes en una misma llamada y explicar su función mediante texto— ya tiene una implementación real para el "ancla de fidelidad". `src/gemini/imageEditor.js` recibe `currentImage` y, cuando procede, `originalImage`, ambas como `{base64, mimeType}`, y las envía en partes `inlineData` separadas. Matriz/Referencia todavía no está implementado; reutilizará este transporte en memoria sin introducir rutas de archivo ni sesiones remotas.
 
 ## 0. Visión
 
@@ -25,16 +25,16 @@ Un usuario que solo quiere editar una imagen (el 90% del uso actual) **no ve nad
 3. El usuario pulsa "+ Referencia" (o arrastra una segunda imagen directamente a esa ranura). Se abre el mismo selector de archivos de siempre.
 4. La ranura de Referencia muestra una miniatura + su icono de rol. El usuario puede quitarla (×) en cualquier momento sin afectar a la Matriz.
 5. El usuario escribe su prompt normal ("dale el estilo de la segunda imagen", "usa el fondo de la referencia", etc. — lenguaje natural, no una sintaxis especial).
-6. Pulsa Editar Imagen. La app construye el prompt interno (sección 3) y envía Matriz + Referencia + texto a Gemini en una sola llamada — el mecanismo de envío multi-imagen **ya existe** en el código actual (`src/gemini/imageEditor.js`, `editImage()` ya acepta `imagePaths: string[]` y ya serializa cada imagen como una parte `inlineData` independiente en el array `messageParts`; hoy la UI solo llena esa lista con un elemento, pero la función no cambia de forma).
+6. Pulsa Editar Imagen. La app construye el prompt interno (sección 3) y envía la imagen fuente visible + el ancla original cuando corresponda + la Referencia + texto a Gemini en una sola llamada. `editImage()` ya serializa imágenes en memoria como partes `inlineData`; el MVP ampliará su contrato con una `referenceImage` opcional y mantendrá intacta la llamada actual cuando no exista referencia.
 7. El resultado aparece en el panel Editada, igual que hoy. El historial guarda qué roles participaron (para poder mostrar "Editado con Referencia" más adelante, sin que sea imprescindible para el MVP).
 
 ### Modo Conversación
 
-El modo conversación actual (`activeSessions: Map<sessionId, Chat>`) reenvía todo el historial de turnos automáticamente. Los roles solo se declaran en el **primer turno** (cuando se construye `messageParts` por primera vez); los turnos siguientes son solo texto, exactamente como hoy — el modelo ya tiene las imágenes con sus roles en su contexto de conversación. No se necesita lógica nueva aquí, es una consecuencia directa de cómo ya funciona `Chat.sendMessage()`.
+AXION 1.1.5 no mantiene una sesión remota de Gemini. Cada edición es una solicitud independiente: el renderer decide qué versión es la fuente, envía sus bytes y, si no es la original, añade también el ancla de fidelidad. Por tanto, mientras haya una Referencia activa deberá reenviarse en **cada edición**, junto con las instrucciones de rol. El historial y el cursor de versiones siguen siendo locales; Deshacer y Rehacer no generan llamadas nuevas.
 
-### Quitar/cambiar una imagen a mitad de sesión
+### Quitar/cambiar una imagen durante el proyecto
 
-Quitar la Referencia no afecta a la Matriz ni reinicia la conversación. Cambiar la Matriz sí reinicia la sesión (mismo comportamiento que hoy al soltar una imagen nueva) — es el ancla de identidad, cambiarla es, conceptualmente, "empezar un edit distinto".
+Quitar la Referencia no afecta a la Matriz ni borra versiones ya creadas; simplemente deja de enviarse en las ediciones siguientes. Sustituir la Matriz conserva el comportamiento actual de cargar una imagen nueva: crea una base nueva y limpia el control de versiones del proyecto activo. No existe ninguna sesión remota que reiniciar.
 
 ---
 
@@ -132,13 +132,15 @@ User instruction: "dale el estilo de la segunda imagen a la primera"
 
 Puntos clave de diseño de este bloque:
 
-- **El orden es determinista y fijo** (por `priority` en `imageRoles.js`): Matriz siempre es "Image 1", Referencia siempre "Image 2", etc. Gemini correlaciona menciones de texto ("la primera imagen") con la posición real en el array — si el orden no fuera estable, el prompt mentiría sobre qué imagen es cuál.
+- **El orden y las etiquetas son deterministas:** primero se adjunta la versión fuente visible; después, solo si es distinta, la imagen original como ancla de fidelidad; por último, la Referencia. Cada `inlineData` va precedida por una etiqueta textual inequívoca ("SOURCE IMAGE", "ORIGINAL FIDELITY ANCHOR", "REFERENCE IMAGE") para que la presencia opcional del ancla no cambie el significado por posición. El constructor no debe prometer que Referencia siempre será "Image 2".
 - **Compone con el optimizador de prompts existente, no lo sustituye.** Cuando "Optimizar siempre los prompts" está activo, `buildOptimizerMetaPrompt()` (ya existente) necesita saber qué roles están activos para no reescribir el prompt de forma que pierda la semántica de roles — se le pasa la misma lista de roles activos como un fragmento adicional, igual que hoy ya recibe `styleFragment`.
 - El texto de instrucción de cada rol (`modelInstruction`) es **el mismo para toda la app**, no se le pide al usuario que lo escriba — es exactamente la promesa de "interfaz extremadamente sencilla": el usuario nunca ve ni edita este texto, solo elige qué imagen va en qué ranura.
 
 ### Cambio de forma en `imageEditor.js` (cuando se implemente)
 
-`editImage()` pasaría de aceptar `imagePaths: string[]` a aceptar `imageRoles: { role: string, filePath: string }[]`, con `imagePaths` derivable internamente (`imageRoles.map(r => r.filePath)`) para no romper nada del pipeline de importación (`imageImportService.importImage()` no cambia en absoluto — sigue leyendo un path y devolviendo `{base64, mimeType}`, ajeno por completo al concepto de "rol"). Si solo se pasa una imagen sin rol explícito, se asume `matrix` — así el 100% de las llamadas actuales (una sola imagen) siguen siendo válidas sin cambios en las demás capas.
+Para el MVP, `editImage()` conserva `currentImage` y `originalImage` y añade `referenceImage?: {base64, mimeType}`. Esta forma coincide con el contrato real de AXION 1.1.5, evita cargar archivos dentro de la capa Gemini y mantiene totalmente compatible el caso actual. `imageImportService.importImage()` continúa leyendo una ruta seleccionada y devolviendo bytes; el renderer guarda esos bytes como Referencia y el IPC los transporta igual que las demás imágenes.
+
+Solo cuando existan tres o más roles validados tendrá sentido generalizar el contrato a `imageRoles: {role, image}[]`. Empezar con una propiedad opcional reduce superficie de cambio y facilita probar el comportamiento real de Nano Banana 2 antes de diseñar una abstracción mayor.
 
 ---
 
@@ -188,12 +190,14 @@ Hoy la app no expone ningún selector de modelo (usa internamente `gemini-3.1-fl
 |---|---|
 | `src/roles/imageRoles.js` | **Nuevo** — datos de roles, mismo patrón que `styleLibrary.js` |
 | `src/prompts/matrixPromptBuilder.js` | **Nuevo** — construcción de texto, mismo patrón que `optimizerPromptBuilder.js` |
-| `src/gemini/imageEditor.js` | Modificado — `editImage()` acepta `imageRoles[]` en vez de `imagePaths[]` (con fallback compatible) |
-| `src/prompts/optimizerPromptBuilder.js` | Modificado — recibe roles activos como contexto adicional, igual que ya recibe `styleFragment` |
+| `src/gemini/imageEditor.js` | Modificado — `editImage()` acepta `referenceImage` opcional y construye una solicitud multimodal ordenada |
+| `src/core/axionCore.js`, `src/main/ipcHandlers.js`, `src/preload/preload.js` | Modificados — transportan la referencia opcional sin crear un canal IPC nuevo |
+| `src/prompts/optimizerPromptBuilder.js` | Modificado — recibe el contexto de Matriz/Referencia para no eliminar su semántica al optimizar |
 | `ui/index.html`, nuevo `ui/scripts/components/roleSlotPanel.js` | Modificado/nuevo — activa y da semántica al hueco `#original-gallery` / `.image-gallery` ya preparado |
-| `ui/scripts/state/appState.js` | Modificado — `originalImage` evoluciona a `imageRoles: [{role, image}]`, con `originalImage` derivable para no romper otros call sites |
+| `ui/scripts/state/appState.js` | Modificado — añade `referenceImage` opcional; `versionHistory[0]` continúa siendo la Matriz/original |
+| `src/services/projectStore.js` | Modificado — persiste la Referencia opcional para que la recuperación del proyecto sea completa |
 
-**No se toca:** `src/services/imageImport/**` (sigue leyendo un path y devolviendo bytes, ajeno al concepto de rol), `src/shared/ipcChannels.js` (mismo canal `IMAGE_EDIT`, payload extendido no roto), ni ninguna lógica de Gemini más allá de `imageEditor.js`.
+**No se toca:** `src/services/imageImport/**` (sigue leyendo una ruta y devolviendo `{base64, mimeType}`), `src/shared/ipcChannels.js` (se reutilizan `DIALOG_OPEN_IMAGE`, `IMAGE_LOAD` e `IMAGE_EDIT`) ni el comportamiento del caso simple sin Referencia.
 
 ## Riesgos y preguntas abiertas (a validar antes o durante la implementación)
 
