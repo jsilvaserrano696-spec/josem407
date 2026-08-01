@@ -73,7 +73,7 @@ function fallbackIntent({ operation, hasImage, text, styleId }) {
  * src/gemini/promptOptimizer.js, stays a separate, user-triggered IPC call today — unchanged by
  * this function). Returns exactly what imageEditor.editImage() returns.
  */
-async function runEditPipeline({ prompt, currentImage, originalImage, displayPrompt, styleId } = {}) {
+async function runEditPipeline({ prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId } = {}) {
   const requestText = displayPrompt ?? prompt;
 
   const intent = safeStage(
@@ -85,7 +85,7 @@ async function runEditPipeline({ prompt, currentImage, originalImage, displayPro
   const directedIntent = safeStage("DIRECTOR", () => decideDirection({ intent }), intent);
   validateIntentForDiagnostics(directedIntent, "DIRECTOR");
 
-  const result = await imageEditor.editImage({ prompt, currentImage, originalImage });
+  const result = await imageEditor.editImage({ prompt, currentImage, originalImage, referenceImage });
 
   safeStage(
     "INSPECTOR",

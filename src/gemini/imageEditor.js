@@ -9,6 +9,7 @@
 const geminiClient = require("./geminiClient");
 const { currentStrings } = require("../services/currentLocaleStrings");
 const editDebugLogger = require("../debug/editDebugLogger");
+const { buildMatrixReferencePrompt } = require("../prompts/matrixPromptBuilder");
 
 const DEFAULT_MODEL = "gemini-3.1-flash-image";
 const OUTPUT_IMAGE_SIZE = "4K";
@@ -49,7 +50,7 @@ function extractImageFromResponse(response) {
  * actual "what to change / what to preserve" content is `prompt`, built by
  * optimizerPromptBuilder.js. Nothing in this function reads from disk or keeps state across calls.
  */
-async function editImage({ prompt, currentImage, originalImage }) {
+async function editImage({ prompt, currentImage, originalImage, referenceImage }) {
   if (!prompt || !prompt.trim()) {
     throw new Error(currentStrings()["error.emptyPrompt"]);
   }
@@ -58,8 +59,12 @@ async function editImage({ prompt, currentImage, originalImage }) {
   }
 
   const ai = geminiClient.getClient();
+  const hasReference = Boolean(referenceImage?.base64);
+  const effectivePrompt = hasReference
+    ? buildMatrixReferencePrompt({ userPrompt: prompt, hasOriginalAnchor: Boolean(originalImage?.base64) })
+    : prompt;
   const messageParts = [
-    { text: prompt },
+    { text: effectivePrompt },
     { text: "Reference image A — current state, build the requested change on top of this:" },
     { inlineData: { mimeType: currentImage.mimeType, data: currentImage.base64 } },
   ];
@@ -77,6 +82,12 @@ async function editImage({ prompt, currentImage, originalImage }) {
       { inlineData: { mimeType: originalImage.mimeType, data: originalImage.base64 } }
     );
   }
+  if (hasReference) {
+    messageParts.push(
+      { text: "REFERENCE IMAGE — inspiration only, governed by the multi-image role protocol above:" },
+      { inlineData: { mimeType: referenceImage.mimeType, data: referenceImage.base64 } }
+    );
+  }
 
   const startedAt = Date.now();
   try {
@@ -88,6 +99,7 @@ async function editImage({ prompt, currentImage, originalImage }) {
     editDebugLogger.log("Gemini image edit responded", {
       elapsedMs: Date.now() - startedAt,
       withFidelityAnchor: Boolean(originalImage?.base64),
+      withReferenceImage: hasReference,
     });
     return extractImageFromResponse(response);
   } catch (error) {

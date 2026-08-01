@@ -45,9 +45,9 @@ function registerIpcHandlers() {
   // `prompt` is the Gemini-optimized instruction actually sent to the model; `displayPrompt` is
   // the user's own (Spanish) text, used only for the persisted History panel entry — see
   // DESIGN_PHILOSOPHY.md, the sidebar must never show the internal optimized prompt.
-  ipcMain.handle(channels.IMAGE_EDIT, async (_event, { prompt, currentImage, originalImage, displayPrompt, styleId }) => {
+  ipcMain.handle(channels.IMAGE_EDIT, async (_event, { prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId }) => {
     editDebugLogger.log("IMAGE_EDIT IPC handler received request", { promptLength: prompt?.length }); // TEMP DEBUG
-    const result = await axionCore.runEditPipeline({ prompt, currentImage, originalImage, displayPrompt, styleId });
+    const result = await axionCore.runEditPipeline({ prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId });
 
     const entry = historyStore.addEntry({ prompt: displayPrompt, styleId: styleId ?? null });
     editDebugLogger.log("IMAGE_EDIT IPC handler returning result to renderer", { mimeType: result.mimeType, bytes: result.data.length }); // TEMP DEBUG

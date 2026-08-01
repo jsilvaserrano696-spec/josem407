@@ -83,7 +83,11 @@ test("1. editImage without originalImage -> success, no second reference image i
 
   const result = await editImage({ prompt: "x", currentImage: { base64: "AAA", mimeType: "image/png" } });
 
-  assert.equal(capture.contents.length, 3);
+  assert.deepEqual(capture.contents, [
+    { text: "x" },
+    { text: "Reference image A — current state, build the requested change on top of this:" },
+    { inlineData: { mimeType: "image/png", data: "AAA" } },
+  ]);
   assert.equal(result.mimeType, "image/png");
 });
 
@@ -98,6 +102,45 @@ test("2. editImage with originalImage -> success, includes the second reference 
   });
 
   assert.equal(capture.contents.length, 5);
+});
+
+test("2a. editImage with referenceImage labels and sends it after the source", async (t) => {
+  const capture = newCapture();
+  patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
+
+  const referenceImage = deepFreeze({ base64: "REFERENCE", mimeType: "image/jpeg" });
+  const snapshot = structuredClone(referenceImage);
+  await editImage({
+    prompt: "usa su iluminación",
+    currentImage: { base64: "SOURCE", mimeType: "image/png" },
+    referenceImage,
+  });
+
+  assert.equal(capture.contents.length, 5);
+  assert.match(capture.contents[0].text, /Image 1 — SOURCE IMAGE \/ MATRIX/);
+  assert.match(capture.contents[0].text, /Image 2 — REFERENCE IMAGE \/ REFERENCE/);
+  assert.deepEqual(capture.contents[4], {
+    inlineData: { mimeType: "image/jpeg", data: "REFERENCE" },
+  });
+  assert.deepEqual(referenceImage, snapshot);
+});
+
+test("2b. editImage orders source, original anchor, then reference deterministically", async (t) => {
+  const capture = newCapture();
+  patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
+
+  await editImage({
+    prompt: "usa los materiales de referencia",
+    currentImage: { base64: "SOURCE", mimeType: "image/png" },
+    originalImage: { base64: "ORIGINAL", mimeType: "image/png" },
+    referenceImage: { base64: "REFERENCE", mimeType: "image/png" },
+  });
+
+  assert.equal(capture.contents.length, 7);
+  assert.equal(capture.contents[2].inlineData.data, "SOURCE");
+  assert.equal(capture.contents[4].inlineData.data, "ORIGINAL");
+  assert.equal(capture.contents[6].inlineData.data, "REFERENCE");
+  assert.match(capture.contents[0].text, /Image 3 — REFERENCE IMAGE/);
 });
 
 test("3. generateImage -> contents is exactly [{ text: prompt }]", async (t) => {
