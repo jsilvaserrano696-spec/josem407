@@ -130,6 +130,7 @@
   "menu.redo": "Rehacer",
   "menu.cut": "Cortar",
   "menu.copy": "Copiar",
+  "menu.copyImage": "Copiar imagen",
   "menu.paste": "Pegar",
   "menu.selectAll": "Seleccionar todo",
   "menu.view": "Ver",

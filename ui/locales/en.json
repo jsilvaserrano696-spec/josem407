@@ -127,6 +127,7 @@
   "menu.redo": "Redo",
   "menu.cut": "Cut",
   "menu.copy": "Copy",
+  "menu.copyImage": "Copy image",
   "menu.paste": "Paste",
   "menu.selectAll": "Select All",
   "menu.view": "View",

@@ -2,7 +2,7 @@
 // thin — it validates/shapes IPC payloads and delegates to the actual service/gemini/history
 // modules, which stay ignorant of Electron's IPC layer entirely (and are reusable/testable on
 // their own).
-const { ipcMain, BrowserWindow, clipboard, nativeImage } = require("electron");
+const { ipcMain, BrowserWindow, Menu, clipboard, nativeImage } = require("electron");
 const channels = require("../shared/ipcChannels");
 
 const fileService = require("../services/fileService");
@@ -15,7 +15,7 @@ const voiceTranscriber = require("../gemini/voiceTranscriber");
 const styleLibrary = require("../styles/styleLibrary");
 const promptTemplates = require("../prompts/promptTemplates");
 const historyStore = require("../history/historyStore");
-const { buildAppMenu } = require("./menu");
+const { buildAppMenu, loadMenuStrings } = require("./menu");
 // TEMP DEBUG — remove alongside src/debug/editDebugLogger.js.
 const editDebugLogger = require("../debug/editDebugLogger");
 
@@ -96,6 +96,26 @@ function registerIpcHandlers() {
     }
 
     clipboard.writeImage(image);
+    return true;
+  });
+
+  // The renderer explicitly identifies its preview images on right-click. This is more reliable
+  // than Electron's context-menu mediaType detection for large data-URL images.
+  ipcMain.handle(channels.IMAGE_CONTEXT_MENU, async (event, dataUrl) => {
+    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return false;
+    const window = windowFromEvent(event);
+    if (!window) return false;
+
+    const strings = loadMenuStrings(configStore.getSettings().language);
+    Menu.buildFromTemplate([
+      {
+        label: strings["menu.copyImage"],
+        click: () => {
+          const image = nativeImage.createFromDataURL(dataUrl);
+          if (!image.isEmpty()) clipboard.writeImage(image);
+        },
+      },
+    ]).popup({ window });
     return true;
   });
 

@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("axion", {
   loadImage: (filePath) => ipcRenderer.invoke(channels.IMAGE_LOAD, filePath),
   saveImage: (payload) => ipcRenderer.invoke(channels.IMAGE_SAVE, payload),
   copyImage: (payload) => ipcRenderer.invoke(channels.IMAGE_COPY, payload),
+  showImageContextMenu: (dataUrl) => ipcRenderer.invoke(channels.IMAGE_CONTEXT_MENU, dataUrl),
 
   // Editing — stateless: payload always carries the source image explicitly (see
   // src/gemini/imageEditor.js), so there's no separate "new session" call to make.

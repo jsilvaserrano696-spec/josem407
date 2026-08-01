@@ -10,6 +10,7 @@ module.exports = {
   IMAGE_GENERATE: "image:generate",
   IMAGE_SAVE: "image:save",
   IMAGE_COPY: "image:copy",
+  IMAGE_CONTEXT_MENU: "image:context-menu",
 
   PROMPT_OPTIMIZE: "prompt:optimize",
 

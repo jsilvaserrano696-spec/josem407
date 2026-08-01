@@ -51,12 +51,10 @@ function createWindow() {
   });
 
   // Electron does not provide a native Cut/Copy/Paste context menu on right-click the way a
-  // regular browser tab does — it has to be built by hand. Scoped to editable elements only
-  // (params.isEditable), so this never appears over images, buttons, etc.
+  // regular browser tab does — it has to be built by hand. Image previews register their own
+  // explicit menu through IMAGE_CONTEXT_MENU; this handler is only for editable text.
   mainWindow.webContents.on("context-menu", (_event, params) => {
     if (!params.isEditable) return;
-    // Rebuilt fresh on every right-click (cheap — a handful of items), so it always reflects
-    // whatever language is current, with no separate rebuild-on-change plumbing needed here.
     const strings = loadMenuStrings(configStore.getSettings().language);
     Menu.buildFromTemplate([
       { role: "cut", label: strings["menu.cut"], enabled: params.editFlags.canCut },

@@ -422,6 +422,12 @@ async function handleCopyClick() {
   }
 }
 
+function handleImageContextMenu(event) {
+  event.preventDefault();
+  const dataUrl = event.currentTarget.src;
+  if (dataUrl) window.axion.showImageContextMenu(dataUrl);
+}
+
 async function init() {
   const [styles, templates, config] = await Promise.all([
     window.axion.listStyles(),
@@ -518,6 +524,8 @@ async function init() {
   dom.editImageButton.addEventListener("click", handleEditClick);
   dom.copyImageButton.addEventListener("click", handleCopyClick);
   dom.saveImageButton.addEventListener("click", handleSaveClick);
+  dom.originalImage.addEventListener("contextmenu", handleImageContextMenu);
+  dom.editedImage.addEventListener("contextmenu", handleImageContextMenu);
 
   dom.clearHistoryButton.addEventListener("click", async () => {
     await window.axion.clearHistory();
