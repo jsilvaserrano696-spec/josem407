@@ -3,8 +3,9 @@
   "header.settings.ariaLabel": "Abrir ajustes",
 
   "panel.original": "Original",
-  "panel.addImage.title": "Añadir imagen",
-  "panel.addImage.ariaLabel": "Añadir o reemplazar la imagen original",
+  "panel.changeMatrix": "🧬 Cambiar Matriz",
+  "panel.addImage.title": "Cambiar la imagen Matriz",
+  "panel.addImage.ariaLabel": "Cambiar la imagen Matriz principal",
   "panel.pasteImage.title": "Pegar imagen",
   "panel.pasteImage.ariaLabel": "Pegar imagen desde el portapapeles",
   "dropzone.dragDrop": "Arrastra y suelta una imagen aquí",

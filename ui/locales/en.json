@@ -3,8 +3,9 @@
   "header.settings.ariaLabel": "Open settings",
 
   "panel.original": "Original",
-  "panel.addImage.title": "Add image",
-  "panel.addImage.ariaLabel": "Add or replace the original image",
+  "panel.changeMatrix": "🧬 Change Matrix",
+  "panel.addImage.title": "Change the Matrix image",
+  "panel.addImage.ariaLabel": "Change the main Matrix image",
   "panel.pasteImage.title": "Paste image",
   "panel.pasteImage.ariaLabel": "Paste image from clipboard",
   "dropzone.dragDrop": "Drag & drop an image here",
