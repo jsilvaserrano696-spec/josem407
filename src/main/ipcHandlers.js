@@ -15,6 +15,7 @@ const voiceTranscriber = require("../gemini/voiceTranscriber");
 const styleLibrary = require("../styles/styleLibrary");
 const promptTemplates = require("../prompts/promptTemplates");
 const historyStore = require("../history/historyStore");
+const clipboardImageService = require("../services/clipboardImageService");
 const { buildAppMenu, loadMenuStrings } = require("./menu");
 // TEMP DEBUG — remove alongside src/debug/editDebugLogger.js.
 const editDebugLogger = require("../debug/editDebugLogger");
@@ -86,23 +87,13 @@ function registerIpcHandlers() {
   // the sandboxed renderer has no direct clipboard permission. nativeImage decodes the exact
   // image currently displayed, and Electron writes it in the OS-native bitmap formats.
   ipcMain.handle(channels.IMAGE_COPY, async (_event, { base64, mimeType }) => {
-    if (typeof base64 !== "string" || !base64 || typeof mimeType !== "string" || !mimeType.startsWith("image/")) {
-      throw new TypeError("A valid image is required to copy to the clipboard.");
-    }
-
-    const image = nativeImage.createFromDataURL(`data:${mimeType};base64,${base64}`);
-    if (image.isEmpty()) {
-      throw new Error("The image could not be decoded for the clipboard.");
-    }
-
-    clipboard.writeImage(image);
-    return true;
+    return clipboardImageService.writePayloadToClipboard({ base64, mimeType }, { nativeImage, clipboard });
   });
 
   // The renderer explicitly identifies its preview images on right-click. This is more reliable
   // than Electron's context-menu mediaType detection for large data-URL images.
   ipcMain.handle(channels.IMAGE_CONTEXT_MENU, async (event, dataUrl) => {
-    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return false;
+    if (!clipboardImageService.isImageDataUrl(dataUrl)) return false;
     const window = windowFromEvent(event);
     if (!window) return false;
 
@@ -111,8 +102,7 @@ function registerIpcHandlers() {
       {
         label: strings["menu.copyImage"],
         click: () => {
-          const image = nativeImage.createFromDataURL(dataUrl);
-          if (!image.isEmpty()) clipboard.writeImage(image);
+          clipboardImageService.writeDataUrlToClipboard(dataUrl, { nativeImage, clipboard });
         },
       },
     ]).popup({ window });
