@@ -9,6 +9,7 @@ module.exports = {
   IMAGE_EDIT: "image:edit",
   IMAGE_GENERATE: "image:generate",
   IMAGE_SAVE: "image:save",
+  IMAGE_COPY: "image:copy",
 
   PROMPT_OPTIMIZE: "prompt:optimize",
 

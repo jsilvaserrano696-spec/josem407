@@ -26,6 +26,7 @@
   "voice.button.ariaLabel": "Comando de voz",
   "button.editImage": "Editar Imagen",
   "button.createImage": "Crear Imagen",
+  "button.copyImage": "Copiar Imagen",
   "button.saveImage": "💾 Guardar Imagen",
 
   "sidebar.templates": "Plantillas",
@@ -76,6 +77,7 @@
   "status.generating": "Generando imagen…",
   "status.editComplete": "Edición completada.",
   "status.createComplete": "Imagen creada.",
+  "status.imageCopied": "Imagen copiada al portapapeles.",
   "status.savedTo": "Guardado en {path}",
   "status.saveCancelled": "Guardado cancelado.",
   "status.templateLoaded": "Plantilla cargada: {label}",
@@ -88,6 +90,7 @@
   "error.invalidApiKey": "Tu clave de acceso no es válida. Revísala en Ajustes.",
   "error.generic": "Algo no ha salido bien. Inténtalo de nuevo.",
   "error.imageGenerationFailed": "No se ha podido generar la imagen. Inténtalo de nuevo.",
+  "error.copyImageFailed": "No se ha podido copiar la imagen. Inténtalo de nuevo.",
   "error.unsupportedFormat": "Ese tipo de archivo no es compatible. Prueba con una imagen en JPG, PNG, WebP o HEIC.",
   "error.corruptImage": "No se ha podido abrir esta imagen. Puede estar dañada o en un formato no compatible.",
   "error.emptyPrompt": "El texto de la instrucción no puede estar vacío.",

@@ -26,6 +26,7 @@
   "voice.button.ariaLabel": "Voice command",
   "button.editImage": "Edit Image",
   "button.createImage": "Create Image",
+  "button.copyImage": "Copy Image",
   "button.saveImage": "💾 Save Image",
 
   "sidebar.templates": "Templates",
@@ -76,6 +77,7 @@
   "status.generating": "Generating image…",
   "status.editComplete": "Edit complete.",
   "status.createComplete": "Image created.",
+  "status.imageCopied": "Image copied to the clipboard.",
   "status.savedTo": "Saved to {path}",
   "status.saveCancelled": "Save cancelled.",
   "status.templateLoaded": "Loaded template: {label}",
@@ -88,6 +90,7 @@
   "error.invalidApiKey": "Your access key isn't valid. Check it in Settings.",
   "error.generic": "Something went wrong. Please try again.",
   "error.imageGenerationFailed": "Couldn't generate the image. Please try again.",
+  "error.copyImageFailed": "Couldn't copy the image. Please try again.",
   "error.unsupportedFormat": "That file type isn't supported. Try a JPG, PNG, WebP, or HEIC image.",
   "error.corruptImage": "Couldn't open this image. It may be corrupted or in an unsupported format.",
   "error.emptyPrompt": "The instruction text must not be empty.",

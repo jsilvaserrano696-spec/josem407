@@ -55,6 +55,7 @@ const dom = {
   promptInput: el("prompt-input"),
   voiceButton: el("voice-button"),
   editImageButton: el("edit-image-button"),
+  copyImageButton: el("copy-image-button"),
   saveImageButton: el("save-image-button"),
   progressBar: el("progress-bar"),
   statusBar: el("status-bar"),
@@ -108,11 +109,16 @@ function renderCurrentVersion() {
 
   if (!version) {
     clearImage(dom.editedImage, dom.editedPlaceholder);
+    dom.copyImageButton.disabled = true;
     dom.saveImageButton.disabled = true;
   } else {
     const dataUrl = `data:${version.image.mimeType};base64,${version.image.base64}`;
     showImage(dom.editedImage, dom.editedPlaceholder, dataUrl);
-    dom.saveImageButton.disabled = versionCursor === 0 && version.prompt === null;
+    const isUneditedImport = versionCursor === 0 && version.prompt === null;
+    // Copy always applies to whatever image is visible, including a freshly imported original.
+    // Save keeps its narrower rule because that original is already present on disk.
+    dom.copyImageButton.disabled = false;
+    dom.saveImageButton.disabled = isUneditedImport;
   }
   updateUndoRedoButtons();
 }
@@ -402,6 +408,20 @@ async function handleSaveClick() {
   }
 }
 
+async function handleCopyClick() {
+  const { versionHistory, versionCursor } = appState.getState();
+  if (versionCursor < 0) return;
+  const version = versionHistory[versionCursor];
+
+  try {
+    await window.axion.copyImage(version.image);
+    setStatus(dom.statusBar, t("status.imageCopied"), "success");
+  } catch (error) {
+    window.axion.debugLog("Copy Image flow threw", { message: error.message, stack: error.stack });
+    setStatus(dom.statusBar, t("error.copyImageFailed"), "error");
+  }
+}
+
 async function init() {
   const [styles, templates, config] = await Promise.all([
     window.axion.listStyles(),
@@ -496,6 +516,7 @@ async function init() {
   dom.redoButton.addEventListener("click", handleRedoClick);
 
   dom.editImageButton.addEventListener("click", handleEditClick);
+  dom.copyImageButton.addEventListener("click", handleCopyClick);
   dom.saveImageButton.addEventListener("click", handleSaveClick);
 
   dom.clearHistoryButton.addEventListener("click", async () => {

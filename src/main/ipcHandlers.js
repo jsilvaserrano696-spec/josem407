@@ -2,7 +2,7 @@
 // thin — it validates/shapes IPC payloads and delegates to the actual service/gemini/history
 // modules, which stay ignorant of Electron's IPC layer entirely (and are reusable/testable on
 // their own).
-const { ipcMain, BrowserWindow, clipboard } = require("electron");
+const { ipcMain, BrowserWindow, clipboard, nativeImage } = require("electron");
 const channels = require("../shared/ipcChannels");
 
 const fileService = require("../services/fileService");
@@ -80,6 +80,23 @@ function registerIpcHandlers() {
     const buffer = Buffer.from(base64, "base64");
     await fileService.writeImageFile(savePath, buffer);
     return savePath;
+  });
+
+  // Clipboard writes stay in the main process for the same reason as clipboard reads below:
+  // the sandboxed renderer has no direct clipboard permission. nativeImage decodes the exact
+  // image currently displayed, and Electron writes it in the OS-native bitmap formats.
+  ipcMain.handle(channels.IMAGE_COPY, async (_event, { base64, mimeType }) => {
+    if (typeof base64 !== "string" || !base64 || typeof mimeType !== "string" || !mimeType.startsWith("image/")) {
+      throw new TypeError("A valid image is required to copy to the clipboard.");
+    }
+
+    const image = nativeImage.createFromDataURL(`data:${mimeType};base64,${base64}`);
+    if (image.isEmpty()) {
+      throw new Error("The image could not be decoded for the clipboard.");
+    }
+
+    clipboard.writeImage(image);
+    return true;
   });
 
   ipcMain.handle(channels.PROMPT_OPTIMIZE, async (_event, { userPrompt, styleId, priorEdits, currentImage }) => {
