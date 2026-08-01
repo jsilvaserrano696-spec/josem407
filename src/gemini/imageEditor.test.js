@@ -10,7 +10,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { ApiError } = require("@google/genai");
-const { editImage, generateImage, DEFAULT_MODEL } = require("./imageEditor");
+const { editImage, generateImage, DEFAULT_MODEL, OUTPUT_IMAGE_SIZE } = require("./imageEditor");
 const geminiClient = require("./geminiClient");
 const configStore = require("../services/configStore");
 const editDebugLogger = require("../debug/editDebugLogger");
@@ -52,10 +52,11 @@ function fakeEmptyResponse() {
 function fakeGeminiClient({ response, error, capture }) {
   return {
     models: {
-      generateContent: async ({ model, contents }) => {
+      generateContent: async ({ model, contents, config }) => {
         capture.calls += 1;
         capture.model = model;
         capture.contents = contents;
+        capture.config = config;
         if (error) throw error;
         return response;
       },
@@ -64,7 +65,7 @@ function fakeGeminiClient({ response, error, capture }) {
 }
 
 function newCapture() {
-  return { calls: 0, model: undefined, contents: undefined };
+  return { calls: 0, model: undefined, contents: undefined, config: undefined };
 }
 
 function mockLogger(t) {
@@ -146,14 +147,19 @@ test("7. exactly one call to the model per invocation", async (t) => {
   assert.equal(capture.calls, 1);
 });
 
-test("8. the model sent is always DEFAULT_MODEL", async (t) => {
+test("8. Nano Banana 2 is always requested with image-only 4K output", async (t) => {
   const capture = newCapture();
   patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
 
   await generateImage({ prompt: "x" });
 
   assert.equal(capture.model, DEFAULT_MODEL);
-  assert.equal(DEFAULT_MODEL, "gemini-2.5-flash-image");
+  assert.equal(DEFAULT_MODEL, "gemini-3.1-flash-image");
+  assert.equal(OUTPUT_IMAGE_SIZE, "4K");
+  assert.deepEqual(capture.config, {
+    responseModalities: ["IMAGE"],
+    imageConfig: { imageSize: "4K" },
+  });
 });
 
 // --- Error cases ---------------------------------------------------------------------------

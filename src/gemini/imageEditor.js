@@ -10,7 +10,12 @@ const geminiClient = require("./geminiClient");
 const { currentStrings } = require("../services/currentLocaleStrings");
 const editDebugLogger = require("../debug/editDebugLogger");
 
-const DEFAULT_MODEL = "gemini-2.5-flash-image";
+const DEFAULT_MODEL = "gemini-3.1-flash-image";
+const OUTPUT_IMAGE_SIZE = "4K";
+const IMAGE_GENERATION_CONFIG = {
+  responseModalities: ["IMAGE"],
+  imageConfig: { imageSize: OUTPUT_IMAGE_SIZE },
+};
 
 function extractImageFromResponse(response) {
   const parts = response?.candidates?.[0]?.content?.parts ?? [];
@@ -75,7 +80,11 @@ async function editImage({ prompt, currentImage, originalImage }) {
 
   const startedAt = Date.now();
   try {
-    const response = await ai.models.generateContent({ model: DEFAULT_MODEL, contents: messageParts });
+    const response = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      contents: messageParts,
+      config: IMAGE_GENERATION_CONFIG,
+    });
     editDebugLogger.log("Gemini image edit responded", {
       elapsedMs: Date.now() - startedAt,
       withFidelityAnchor: Boolean(originalImage?.base64),
@@ -103,7 +112,11 @@ async function generateImage({ prompt }) {
 
   const startedAt = Date.now();
   try {
-    const response = await ai.models.generateContent({ model: DEFAULT_MODEL, contents: messageParts });
+    const response = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      contents: messageParts,
+      config: IMAGE_GENERATION_CONFIG,
+    });
     editDebugLogger.log("Gemini image generation responded", { elapsedMs: Date.now() - startedAt });
     return extractImageFromResponse(response);
   } catch (error) {
@@ -112,4 +125,4 @@ async function generateImage({ prompt }) {
   }
 }
 
-module.exports = { editImage, generateImage, DEFAULT_MODEL };
+module.exports = { editImage, generateImage, DEFAULT_MODEL, OUTPUT_IMAGE_SIZE };
