@@ -91,6 +91,10 @@ function registerIpcHandlers() {
     return clipboardImageService.writePayloadToClipboard({ base64, mimeType }, { nativeImage, clipboard });
   });
 
+  ipcMain.handle(channels.IMAGE_READ_CLIPBOARD, async () => {
+    return clipboardImageService.readImageFromClipboard({ clipboard });
+  });
+
   // The renderer explicitly identifies its preview images on right-click. This is more reliable
   // than Electron's context-menu mediaType detection for large data-URL images.
   ipcMain.handle(channels.IMAGE_CONTEXT_MENU, async (event, dataUrl) => {

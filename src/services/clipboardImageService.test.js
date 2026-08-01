@@ -82,3 +82,22 @@ test("writePayloadToClipboard covers the button's payload-to-clipboard flow", ()
   assert.deepEqual(fake.calls.decoded, ["data:image/jpeg;base64,AAAA"]);
   assert.equal(fake.calls.written.length, 1);
 });
+
+test("readImageFromClipboard returns clipboard pixels as a PNG payload", () => {
+  const image = { isEmpty: () => false, toPNG: () => Buffer.from("pixels") };
+  const result = service.readImageFromClipboard({ clipboard: { readImage: () => image } });
+  assert.deepEqual(result, { base64: Buffer.from("pixels").toString("base64"), mimeType: "image/png" });
+});
+
+test("readImageFromClipboard returns null when the clipboard has no image", () => {
+  const result = service.readImageFromClipboard({ clipboard: { readImage: () => ({ isEmpty: () => true }) } });
+  assert.equal(result, null);
+});
+
+test("readImageFromClipboard rejects unavailable or malformed clipboard support", () => {
+  assert.throws(() => service.readImageFromClipboard(), TypeError);
+  assert.throws(
+    () => service.readImageFromClipboard({ clipboard: { readImage: () => ({ isEmpty: () => false }) } }),
+    TypeError
+  );
+});

@@ -11,6 +11,7 @@ module.exports = {
   IMAGE_SAVE: "image:save",
   IMAGE_COPY: "image:copy",
   IMAGE_CONTEXT_MENU: "image:context-menu",
+  IMAGE_READ_CLIPBOARD: "image:read-clipboard",
 
   PROMPT_OPTIMIZE: "prompt:optimize",
 

@@ -32,9 +32,24 @@ function writePayloadToClipboard(payload, electronDependencies) {
   return writeDataUrlToClipboard(imagePayloadToDataUrl(payload), electronDependencies);
 }
 
+function readImageFromClipboard({ clipboard } = {}) {
+  if (typeof clipboard?.readImage !== "function") {
+    throw new TypeError("Clipboard image support is unavailable.");
+  }
+  const image = clipboard.readImage();
+  if (!image || typeof image.isEmpty !== "function" || image.isEmpty()) return null;
+  if (typeof image.toPNG !== "function") {
+    throw new TypeError("Clipboard image support is unavailable.");
+  }
+  const png = image.toPNG();
+  if (!png || typeof png.toString !== "function" || png.length === 0) return null;
+  return { base64: png.toString("base64"), mimeType: "image/png" };
+}
+
 module.exports = {
   imagePayloadToDataUrl,
   isImageDataUrl,
   writeDataUrlToClipboard,
   writePayloadToClipboard,
+  readImageFromClipboard,
 };

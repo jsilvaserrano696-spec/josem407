@@ -37,16 +37,28 @@
           <div class="image-panel" id="original-panel">
             <div class="image-panel-header">
               <div class="image-panel-label" data-i18n="panel.original">Original</div>
-              <button
-                id="add-image-button"
-                class="icon-button"
-                title="Add image"
-                aria-label="Add or replace the original image"
-                data-i18n-title="panel.addImage.title"
-                data-i18n-aria-label="panel.addImage.ariaLabel"
-              >
-                ➕
-              </button>
+              <div class="image-panel-actions">
+                <button
+                  id="paste-image-button"
+                  class="icon-button"
+                  title="Paste image"
+                  aria-label="Paste image from clipboard"
+                  data-i18n-title="panel.pasteImage.title"
+                  data-i18n-aria-label="panel.pasteImage.ariaLabel"
+                >
+                  📋
+                </button>
+                <button
+                  id="add-image-button"
+                  class="icon-button"
+                  title="Add image"
+                  aria-label="Add or replace the original image"
+                  data-i18n-title="panel.addImage.title"
+                  data-i18n-aria-label="panel.addImage.ariaLabel"
+                >
+                  ➕
+                </button>
+              </div>
             </div>
             <div id="dropzone" class="dropzone">
               <div class="dropzone-content">

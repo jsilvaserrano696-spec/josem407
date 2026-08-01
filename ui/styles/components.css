@@ -142,6 +142,11 @@ button:disabled {
   font-size: 13px;
 }
 
+.image-panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .version-indicator {
   min-width: 84px;
   color: var(--text-secondary);

@@ -44,6 +44,7 @@ const dom = {
   dropzone: el("dropzone"),
   browseButton: el("browse-button"),
   addImageButton: el("add-image-button"),
+  pasteImageButton: el("paste-image-button"),
   originalImage: el("original-image"),
   editedImage: el("edited-image"),
   editedPlaceholder: el("edited-placeholder"),
@@ -161,6 +162,7 @@ function setBusy(isBusy) {
   dom.editImageButton.disabled = isBusy;
   dom.browseButton.disabled = isBusy;
   dom.addImageButton.disabled = isBusy;
+  dom.pasteImageButton.disabled = isBusy;
   setProgressActive(dom.progressBar, isBusy);
   updateUndoRedoButtons();
 }
@@ -289,6 +291,35 @@ function handleImageSelected(image) {
     ? t("status.imageLoadedConverted", { format: image.sourceFormat.toUpperCase() })
     : t("status.imageLoaded");
   setStatus(dom.statusBar, message, "success");
+}
+
+async function pasteImageFromClipboard() {
+  if (appState.getState().isBusy) {
+    setStatus(dom.statusBar, t("status.busyWait"), "info");
+    return;
+  }
+  try {
+    const image = await window.axion.readClipboardImage();
+    if (!image) {
+      setStatus(dom.statusBar, t("status.clipboardHasNoImage"), "info");
+      return;
+    }
+    showOriginalImage(`data:${image.mimeType};base64,${image.base64}`);
+    handleImageSelected({ ...image, sourceFormat: "png", wasConverted: false });
+    setStatus(dom.statusBar, t("status.imagePasted"), "success");
+  } catch (error) {
+    window.axion.debugLog("Paste Image flow threw", { message: error.message, stack: error.stack });
+    setStatus(dom.statusBar, t("error.corruptImage"), "error");
+  }
+}
+
+function handleGlobalPasteShortcut(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "v") return;
+  const target = event.target;
+  const isEditable = target?.matches?.("input, textarea, select, [contenteditable='true']");
+  if (isEditable) return;
+  event.preventDefault();
+  pasteImageFromClipboard();
 }
 
 // The single primary-action handler for both "New" and "Edit": which Gemini call it makes
@@ -633,6 +664,7 @@ async function init() {
   dom.editImageButton.addEventListener("click", handleEditClick);
   dom.copyImageButton.addEventListener("click", handleCopyClick);
   dom.saveImageButton.addEventListener("click", handleSaveClick);
+  dom.pasteImageButton.addEventListener("click", pasteImageFromClipboard);
   dom.originalImage.addEventListener("contextmenu", handleImageContextMenu);
   dom.editedImage.addEventListener("contextmenu", handleImageContextMenu);
   dom.imagePreviewFull.addEventListener("contextmenu", handleImageContextMenu);
@@ -647,6 +679,7 @@ async function init() {
     if (event.target === dom.imagePreviewModal) closeImagePreview();
   });
   window.addEventListener("keydown", handlePreviewKeydown, true);
+  window.addEventListener("keydown", handleGlobalPasteShortcut, true);
 
   dom.clearHistoryButton.addEventListener("click", async () => {
     await window.axion.clearHistory();
