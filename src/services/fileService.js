@@ -29,7 +29,7 @@ async function showSaveImageDialog(browserWindow, suggestedName = "edited-image.
     defaultPath: suggestedName,
     filters: [
       { name: "PNG Image (maximum quality)", extensions: ["png"] },
-      { name: "JPEG Image (smaller file)", extensions: ["jpg", "jpeg"] },
+      { name: "JPEG Image (compressed for sharing)", extensions: ["jpg", "jpeg"] },
     ],
   });
   if (result.canceled || !result.filePath) {

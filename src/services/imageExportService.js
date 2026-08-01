@@ -1,6 +1,6 @@
 const path = require("node:path");
 
-const JPEG_QUALITY = 95;
+const JPEG_QUALITY = 88;
 
 function normalizedMimeType(mimeType) {
   return typeof mimeType === "string" ? mimeType.trim().toLowerCase() : "";
@@ -36,7 +36,6 @@ function encodeImageForPath({ buffer, mimeType, filePath }, nativeImage) {
   }
 
   if (extension === ".jpg" || extension === ".jpeg") {
-    if (mime === "image/jpeg" || mime === "image/jpg") return buffer;
     const image = decodeImage(buffer, nativeImage);
     const output = typeof image.toJPEG === "function" ? image.toJPEG(JPEG_QUALITY) : null;
     if (!Buffer.isBuffer(output) || output.length === 0) throw new Error("JPEG encoding failed.");
