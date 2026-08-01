@@ -232,10 +232,106 @@ button:disabled {
   max-height: 100%;
   object-fit: contain;
   border-radius: var(--radius-sm);
+  cursor: zoom-in;
 }
 
 .hidden {
   display: none !important;
+}
+
+/* ---------- Enlarged image comparison ---------- */
+.image-preview-overlay {
+  padding: 20px;
+  background: rgba(7, 8, 10, 0.94);
+  z-index: 80;
+}
+
+.image-preview-modal {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.image-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.image-preview-toolbar h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.image-preview-actions,
+.image-preview-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-preview-switcher button.active {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.image-preview-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #0d0f12;
+}
+
+.image-preview-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  transform: translateY(-50%);
+  background: rgba(27, 30, 36, 0.9);
+  border-color: var(--border-strong);
+  font-size: 22px;
+}
+
+.image-preview-nav-previous {
+  left: 18px;
+}
+
+.image-preview-nav-next {
+  right: 18px;
+}
+
+.image-preview-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.45);
+}
+
+.image-preview-hint {
+  margin: 0;
+  padding: 9px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* ---------- Prompt panel ---------- */

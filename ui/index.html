@@ -190,6 +190,48 @@
     </main>
   </div>
 
+  <div id="image-preview-modal" class="modal-overlay image-preview-overlay hidden">
+    <div class="image-preview-modal" role="dialog" aria-modal="true" aria-labelledby="image-preview-title">
+      <div class="image-preview-toolbar">
+        <h2 id="image-preview-title" data-i18n="preview.title">Image preview</h2>
+        <div class="image-preview-actions">
+          <div class="image-preview-switcher" role="group" aria-label="Choose image" data-i18n-aria-label="preview.chooseImage">
+            <button id="preview-original-button" class="secondary-button" data-i18n="panel.original">Original</button>
+            <button id="preview-edited-button" class="secondary-button" data-i18n="panel.edited">Edited</button>
+          </div>
+          <button
+            id="close-image-preview-button"
+            class="icon-button"
+            aria-label="Close image preview"
+            data-i18n-aria-label="preview.close.ariaLabel"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="image-preview-stage">
+        <button
+          id="preview-previous-button"
+          class="icon-button image-preview-nav image-preview-nav-previous"
+          aria-label="Show original image"
+          data-i18n-aria-label="preview.original.ariaLabel"
+        >
+          ←
+        </button>
+        <img id="image-preview-full" alt="Enlarged image" data-i18n-alt="preview.image.alt" />
+        <button
+          id="preview-next-button"
+          class="icon-button image-preview-nav image-preview-nav-next"
+          aria-label="Show edited image"
+          data-i18n-aria-label="preview.edited.ariaLabel"
+        >
+          →
+        </button>
+      </div>
+      <p class="image-preview-hint" data-i18n="preview.hint">Use ← and → to compare · Esc to close</p>
+    </div>
+  </div>
+
   <div id="settings-modal" class="modal-overlay hidden">
     <div class="modal" role="dialog" aria-labelledby="settings-title">
       <div class="modal-header">

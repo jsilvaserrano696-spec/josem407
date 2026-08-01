@@ -17,6 +17,13 @@
   "button.redo.ariaLabel": "Rehacer",
   "edited.placeholder": "Tu imagen editada aparecerá aquí",
   "image.edited.alt": "Imagen editada",
+  "preview.title": "Vista ampliada",
+  "preview.chooseImage": "Elegir imagen",
+  "preview.close.ariaLabel": "Cerrar vista ampliada",
+  "preview.image.alt": "Imagen ampliada",
+  "preview.original.ariaLabel": "Mostrar imagen original",
+  "preview.edited.ariaLabel": "Mostrar imagen editada",
+  "preview.hint": "Usa ← y → para comparar · Esc para cerrar",
 
   "conversationMode.label": "Modo conversación",
   "conversationMode.newButton": "Iniciar nueva conversación",

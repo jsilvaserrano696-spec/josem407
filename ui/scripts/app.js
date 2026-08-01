@@ -47,6 +47,13 @@ const dom = {
   originalImage: el("original-image"),
   editedImage: el("edited-image"),
   editedPlaceholder: el("edited-placeholder"),
+  imagePreviewModal: el("image-preview-modal"),
+  imagePreviewFull: el("image-preview-full"),
+  closeImagePreviewButton: el("close-image-preview-button"),
+  previewOriginalButton: el("preview-original-button"),
+  previewEditedButton: el("preview-edited-button"),
+  previewPreviousButton: el("preview-previous-button"),
+  previewNextButton: el("preview-next-button"),
   conversationModeToggle: el("conversation-mode-toggle"),
   newConversationButton: el("new-conversation-button"),
   undoButton: el("undo-button"),
@@ -428,6 +435,53 @@ function handleImageContextMenu(event) {
   if (dataUrl) window.axion.showImageContextMenu(dataUrl);
 }
 
+function availablePreviewSources() {
+  return {
+    original: dom.originalImage.classList.contains("hidden") ? null : dom.originalImage.src,
+    edited: dom.editedImage.classList.contains("hidden") ? null : dom.editedImage.src,
+  };
+}
+
+function showPreviewImage(kind) {
+  const sources = availablePreviewSources();
+  const source = sources[kind];
+  if (!source) return;
+
+  dom.imagePreviewFull.src = source;
+  dom.imagePreviewFull.dataset.kind = kind;
+  dom.previewOriginalButton.classList.toggle("active", kind === "original");
+  dom.previewEditedButton.classList.toggle("active", kind === "edited");
+  dom.previewOriginalButton.disabled = !sources.original;
+  dom.previewEditedButton.disabled = !sources.edited;
+  dom.previewPreviousButton.disabled = !sources.original || kind === "original";
+  dom.previewNextButton.disabled = !sources.edited || kind === "edited";
+}
+
+function openImagePreview(kind) {
+  showPreviewImage(kind);
+  if (!dom.imagePreviewFull.src) return;
+  dom.imagePreviewModal.classList.remove("hidden");
+  dom.closeImagePreviewButton.focus();
+}
+
+function closeImagePreview() {
+  dom.imagePreviewModal.classList.add("hidden");
+  dom.imagePreviewFull.removeAttribute("src");
+  delete dom.imagePreviewFull.dataset.kind;
+}
+
+function handlePreviewKeydown(event) {
+  if (dom.imagePreviewModal.classList.contains("hidden")) return;
+  const pressed = event.code || event.key;
+  if (!["Escape", "Esc", "ArrowLeft", "ArrowRight"].includes(pressed)) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  if (pressed === "Escape" || pressed === "Esc") closeImagePreview();
+  if (pressed === "ArrowLeft") showPreviewImage("original");
+  if (pressed === "ArrowRight") showPreviewImage("edited");
+}
+
 async function init() {
   const [styles, templates, config] = await Promise.all([
     window.axion.listStyles(),
@@ -526,6 +580,18 @@ async function init() {
   dom.saveImageButton.addEventListener("click", handleSaveClick);
   dom.originalImage.addEventListener("contextmenu", handleImageContextMenu);
   dom.editedImage.addEventListener("contextmenu", handleImageContextMenu);
+  dom.imagePreviewFull.addEventListener("contextmenu", handleImageContextMenu);
+  dom.originalImage.addEventListener("click", () => openImagePreview("original"));
+  dom.editedImage.addEventListener("click", () => openImagePreview("edited"));
+  dom.previewOriginalButton.addEventListener("click", () => showPreviewImage("original"));
+  dom.previewEditedButton.addEventListener("click", () => showPreviewImage("edited"));
+  dom.previewPreviousButton.addEventListener("click", () => showPreviewImage("original"));
+  dom.previewNextButton.addEventListener("click", () => showPreviewImage("edited"));
+  dom.closeImagePreviewButton.addEventListener("click", closeImagePreview);
+  dom.imagePreviewModal.addEventListener("click", (event) => {
+    if (event.target === dom.imagePreviewModal) closeImagePreview();
+  });
+  window.addEventListener("keydown", handlePreviewKeydown, true);
 
   dom.clearHistoryButton.addEventListener("click", async () => {
     await window.axion.clearHistory();

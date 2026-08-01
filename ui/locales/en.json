@@ -17,6 +17,13 @@
   "button.redo.ariaLabel": "Redo",
   "edited.placeholder": "Your edited image will appear here",
   "image.edited.alt": "Edited image",
+  "preview.title": "Image preview",
+  "preview.chooseImage": "Choose image",
+  "preview.close.ariaLabel": "Close image preview",
+  "preview.image.alt": "Enlarged image",
+  "preview.original.ariaLabel": "Show original image",
+  "preview.edited.ariaLabel": "Show edited image",
+  "preview.hint": "Use ← and → to compare · Esc to close",
 
   "conversationMode.label": "Conversation Mode",
   "conversationMode.newButton": "Start new conversation",
