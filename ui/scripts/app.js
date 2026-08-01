@@ -170,6 +170,7 @@ function setBusy(isBusy) {
   dom.browseButton.disabled = isBusy;
   dom.addImageButton.disabled = isBusy;
   dom.pasteImageButton.disabled = isBusy;
+  dom.newConversationButton.disabled = isBusy;
   setProgressActive(dom.progressBar, isBusy);
   updateUndoRedoButtons();
 }
@@ -305,9 +306,18 @@ async function applyLanguage(locale) {
 // no Gemini/IPC call needed since there's no server-side session to forget anymore.
 function startNewConversation() {
   const { versionHistory } = appState.getState();
-  if (versionHistory.length === 0) return;
-  appState.setState({ versionHistory: [versionHistory[0]], versionCursor: 0 });
+  quickStylePrompt = null;
+  promptBeforeQuickStyle = null;
+  activeTemplateId = null;
+  appState.setState({
+    versionHistory: versionHistory.length > 0 ? [versionHistory[0]] : [],
+    versionCursor: versionHistory.length > 0 ? 0 : -1,
+    selectedStyleId: null,
+  });
+  setPrompt(dom.promptInput, "");
+  renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], null, onStyleSelect);
   renderCurrentVersion();
+  updateActionButtonLabel();
   persistCurrentProject();
 }
 

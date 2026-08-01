@@ -105,7 +105,7 @@
   "status.saveCancelled": "Guardado cancelado.",
   "status.templateLoaded": "Plantilla cargada: {label}",
   "status.busyWait": "Espera a que termine la operación actual.",
-  "status.newConversationStarted": "Se ha iniciado una nueva conversación. La siguiente edición partirá de la imagen original.",
+  "status.newConversationStarted": "Nueva conversación iniciada. Se conservará la imagen original y se han limpiado las ediciones, el texto y el estilo.",
   "status.newProjectStarted": "Proyecto nuevo. Describe la imagen que quieres crear.",
   "status.projectRestored": "Se ha recuperado tu último proyecto.",
   "status.ready": "Listo. Suelta una imagen para empezar.",
