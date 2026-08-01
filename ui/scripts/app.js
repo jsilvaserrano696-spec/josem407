@@ -94,6 +94,14 @@ function getStyleIcon(styleId) {
   return stylesById.get(styleId)?.icon ?? "";
 }
 
+function persistCurrentProject() {
+  const { versionHistory, versionCursor, selectedStyleId, conversationMode } = appState.getState();
+  if (versionHistory.length === 0) return;
+  window.axion
+    .saveProject({ versionHistory, versionCursor, selectedStyleId, conversationMode })
+    .catch((error) => window.axion.debugLog("Project autosave failed", { message: error.message }));
+}
+
 // Undo/Redo bounds check purely against the local array + cursor — no IPC, no Gemini, no
 // network. Disabled while busy so a generation in flight can't be interrupted mid-edit.
 function updateUndoRedoButtons() {
@@ -187,6 +195,7 @@ function pushVersion({ prompt, styleId, image }) {
   appState.setState({ versionHistory: truncated, versionCursor: truncated.length - 1 });
   renderCurrentVersion();
   updateActionButtonLabel();
+  persistCurrentProject();
 }
 
 async function refreshHistory() {
@@ -215,6 +224,7 @@ async function refreshHistory() {
 function onStyleSelect(styleId) {
   appState.setState({ selectedStyleId: styleId });
   renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], styleId, onStyleSelect);
+  persistCurrentProject();
 }
 
 function handleTemplateReuse(template, label) {
@@ -246,6 +256,7 @@ function startNewConversation() {
   if (versionHistory.length === 0) return;
   appState.setState({ versionHistory: [versionHistory[0]], versionCursor: 0 });
   renderCurrentVersion();
+  persistCurrentProject();
 }
 
 // "Archivo > Nuevo..." — starts a brand-new project with nothing loaded at all: no source
@@ -258,6 +269,7 @@ function startNewProject() {
   renderCurrentVersion();
   updateActionButtonLabel();
   setPrompt(dom.promptInput, "");
+  window.axion.clearProject().catch((error) => window.axion.debugLog("Project clear failed", { message: error.message }));
 }
 
 function handleImageSelected(image) {
@@ -272,6 +284,7 @@ function handleImageSelected(image) {
   appState.setState({ versionHistory: [original], versionCursor: 0 });
   renderCurrentVersion();
   updateActionButtonLabel();
+  persistCurrentProject();
   const message = image.wasConverted
     ? t("status.imageLoadedConverted", { format: image.sourceFormat.toUpperCase() })
     : t("status.imageLoaded");
@@ -404,6 +417,7 @@ function handleUndoClick() {
   if (isBusy || versionCursor <= 0) return;
   appState.setState({ versionCursor: versionCursor - 1 });
   renderCurrentVersion();
+  persistCurrentProject();
 }
 
 function handleRedoClick() {
@@ -411,6 +425,7 @@ function handleRedoClick() {
   if (isBusy || versionCursor >= versionHistory.length - 1) return;
   appState.setState({ versionCursor: versionCursor + 1 });
   renderCurrentVersion();
+  persistCurrentProject();
 }
 
 async function handleSaveClick() {
@@ -502,6 +517,7 @@ function handlePreviewKeydown(event) {
 }
 
 async function init() {
+  let projectRestored = false;
   const [styles, templates, config] = await Promise.all([
     window.axion.listStyles(),
     window.axion.listTemplates(),
@@ -538,6 +554,25 @@ async function init() {
   const { browseForImage } = dropzoneApi;
   showOriginalImage = dropzoneApi.showOriginalImage;
   clearOriginalImage = dropzoneApi.clearOriginalImage;
+
+  const restoredProject = await window.axion.loadProject();
+  if (restoredProject) {
+    appState.setState({
+      versionHistory: restoredProject.versionHistory,
+      versionCursor: restoredProject.versionCursor,
+      selectedStyleId: restoredProject.selectedStyleId,
+      conversationMode: restoredProject.conversationMode,
+    });
+    dom.conversationModeToggle.checked = restoredProject.conversationMode;
+    renderStyleLibrary(dom.styleLibrary, styles, restoredProject.selectedStyleId, onStyleSelect);
+
+    const original = restoredProject.versionHistory[0].image;
+    showOriginalImage(`data:${original.mimeType};base64,${original.base64}`);
+    renderCurrentVersion();
+    updateActionButtonLabel();
+    setPrompt(dom.promptInput, restoredProject.versionHistory[restoredProject.versionCursor].prompt ?? "");
+    projectRestored = true;
+  }
 
   wireVoiceButton({
     buttonEl: dom.voiceButton,
@@ -584,6 +619,7 @@ async function init() {
 
   dom.conversationModeToggle.addEventListener("change", () => {
     appState.setState({ conversationMode: dom.conversationModeToggle.checked });
+    persistCurrentProject();
   });
 
   dom.newConversationButton.addEventListener("click", () => {
@@ -621,7 +657,7 @@ async function init() {
     setStatus(dom.statusBar, t("error.missingApiKey"), "error");
     settingsModalRef.open();
   } else {
-    setStatus(dom.statusBar, t("status.ready"), "info");
+    setStatus(dom.statusBar, t(projectRestored ? "status.projectRestored" : "status.ready"), projectRestored ? "success" : "info");
   }
 }
 

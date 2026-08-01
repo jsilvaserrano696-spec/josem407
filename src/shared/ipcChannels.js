@@ -22,6 +22,10 @@ module.exports = {
   HISTORY_CLEAR: "history:clear",
   HISTORY_TOGGLE_FAVORITE: "history:toggle-favorite",
 
+  PROJECT_LOAD: "project:load",
+  PROJECT_SAVE: "project:save",
+  PROJECT_CLEAR: "project:clear",
+
   TEMPLATES_LIST: "templates:list",
 
   CONFIG_GET: "config:get",

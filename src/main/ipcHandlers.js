@@ -16,6 +16,7 @@ const styleLibrary = require("../styles/styleLibrary");
 const promptTemplates = require("../prompts/promptTemplates");
 const historyStore = require("../history/historyStore");
 const clipboardImageService = require("../services/clipboardImageService");
+const projectStore = require("../services/projectStore");
 const { buildAppMenu, loadMenuStrings } = require("./menu");
 // TEMP DEBUG — remove alongside src/debug/editDebugLogger.js.
 const editDebugLogger = require("../debug/editDebugLogger");
@@ -138,6 +139,10 @@ function registerIpcHandlers() {
   ipcMain.handle(channels.HISTORY_TOGGLE_FAVORITE, async (_event, id) => {
     return historyStore.toggleFavorite(id);
   });
+
+  ipcMain.handle(channels.PROJECT_LOAD, async () => projectStore.loadProject());
+  ipcMain.handle(channels.PROJECT_SAVE, async (_event, project) => projectStore.saveProject(project));
+  ipcMain.handle(channels.PROJECT_CLEAR, async () => projectStore.clearProject());
 
   ipcMain.handle(channels.TEMPLATES_LIST, async () => {
     return promptTemplates.listTemplates();

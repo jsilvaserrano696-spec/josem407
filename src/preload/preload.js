@@ -38,6 +38,11 @@ contextBridge.exposeInMainWorld("axion", {
   clearHistory: () => ipcRenderer.invoke(channels.HISTORY_CLEAR),
   toggleFavorite: (id) => ipcRenderer.invoke(channels.HISTORY_TOGGLE_FAVORITE, id),
 
+  // Active-project recovery
+  loadProject: () => ipcRenderer.invoke(channels.PROJECT_LOAD),
+  saveProject: (project) => ipcRenderer.invoke(channels.PROJECT_SAVE, project),
+  clearProject: () => ipcRenderer.invoke(channels.PROJECT_CLEAR),
+
   // Settings / config
   getConfig: () => ipcRenderer.invoke(channels.CONFIG_GET),
   setApiKey: (apiKey) => ipcRenderer.invoke(channels.CONFIG_SET_API_KEY, apiKey),

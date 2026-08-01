@@ -93,6 +93,7 @@
   "status.busyWait": "Espera a que termine la operación actual.",
   "status.newConversationStarted": "Se ha iniciado una nueva conversación. La siguiente edición partirá de la imagen original.",
   "status.newProjectStarted": "Proyecto nuevo. Describe la imagen que quieres crear.",
+  "status.projectRestored": "Se ha recuperado tu último proyecto.",
   "status.ready": "Listo. Suelta una imagen para empezar.",
 
   "error.missingApiKey": "Añade tu clave de acceso en Ajustes para empezar.",
