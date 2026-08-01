@@ -65,6 +65,7 @@ const dom = {
   voiceButton: el("voice-button"),
   editImageButton: el("edit-image-button"),
   copyImageButton: el("copy-image-button"),
+  useAsOriginalButton: el("use-as-original-button"),
   saveImageButton: el("save-image-button"),
   progressBar: el("progress-bar"),
   statusBar: el("status-bar"),
@@ -84,6 +85,8 @@ const dom = {
 let stylesById = new Map();
 let cachedTemplates = [];
 let settingsModalRef = null;
+let quickStylePrompt = null;
+let promptBeforeQuickStyle = null;
 // Reassigned once initDropzone() runs in init() — needed here too so the "New" project flow
 // (starting/mirroring a project with no source file) can reuse the same Original-panel display
 // logic dropzone.js already owns, instead of duplicating it.
@@ -143,6 +146,7 @@ function renderCurrentVersion() {
   if (!version) {
     clearImage(dom.editedImage, dom.editedPlaceholder);
     dom.copyImageButton.disabled = true;
+    dom.useAsOriginalButton.disabled = true;
     dom.saveImageButton.disabled = true;
   } else {
     const dataUrl = `data:${version.image.mimeType};base64,${version.image.base64}`;
@@ -151,6 +155,7 @@ function renderCurrentVersion() {
     // Copy always applies to whatever image is visible, including a freshly imported original.
     // Save keeps its narrower rule because that original is already present on disk.
     dom.copyImageButton.disabled = false;
+    dom.useAsOriginalButton.disabled = versionCursor <= 0;
     dom.saveImageButton.disabled = isUneditedImport;
   }
   updateVersionIndicator();
@@ -174,7 +179,11 @@ function setBusy(isBusy) {
 // static HTML originally said.
 function updateActionButtonLabel() {
   const { versionHistory } = appState.getState();
-  const key = versionHistory.length === 0 ? "button.createImage" : "button.editImage";
+  const key = quickStylePrompt
+    ? "button.applyStyle"
+    : versionHistory.length === 0
+      ? "button.createImage"
+      : "button.editImage";
   dom.editImageButton.setAttribute("data-i18n", key);
   dom.editImageButton.textContent = t(key);
 }
@@ -205,11 +214,14 @@ async function refreshHistory() {
   renderHistory(dom.historyList, entries, {
     getStyleIcon,
     onReuse: (entry) => {
+      quickStylePrompt = null;
+      promptBeforeQuickStyle = null;
       setPrompt(dom.promptInput, entry.prompt);
       if (entry.styleId) {
         appState.setState({ selectedStyleId: entry.styleId });
         renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], entry.styleId, onStyleSelect);
       }
+      updateActionButtonLabel();
       setStatus(dom.statusBar, t("status.promptLoadedFromHistory"), "info");
     },
     onDelete: async (id) => {
@@ -226,11 +238,36 @@ async function refreshHistory() {
 function onStyleSelect(styleId) {
   appState.setState({ selectedStyleId: styleId });
   renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], styleId, onStyleSelect);
+  const hasImage = appState.getState().versionHistory.length > 0;
+
+  if (styleId && hasImage) {
+    if (!quickStylePrompt) promptBeforeQuickStyle = dom.promptInput.value;
+    const styleLabel = t(`style.${styleId}`);
+    quickStylePrompt = t("style.quickPrompt", { style: styleLabel });
+    setPrompt(dom.promptInput, quickStylePrompt);
+    setStatus(dom.statusBar, t("status.styleReady", { style: styleLabel }), "info");
+  } else if (styleId) {
+    quickStylePrompt = null;
+    promptBeforeQuickStyle = null;
+    setStatus(dom.statusBar, t("status.styleSelectedForCreate", { style: t(`style.${styleId}`) }), "info");
+  } else {
+    if (quickStylePrompt && dom.promptInput.value === quickStylePrompt) {
+      setPrompt(dom.promptInput, promptBeforeQuickStyle ?? "");
+    }
+    quickStylePrompt = null;
+    promptBeforeQuickStyle = null;
+    setStatus(dom.statusBar, t("status.styleCleared"), "info");
+  }
+
+  updateActionButtonLabel();
   persistCurrentProject();
 }
 
 function handleTemplateReuse(template, label) {
+  quickStylePrompt = null;
+  promptBeforeQuickStyle = null;
   setPrompt(dom.promptInput, template.prompt);
+  updateActionButtonLabel();
   setStatus(dom.statusBar, t("status.templateLoaded", { label }), "info");
 }
 
@@ -239,10 +276,17 @@ function handleTemplateReuse(template, label) {
 // templates, history) are just re-rendered with the same already-cached data through their
 // normal render functions, since those already read live translations on every render.
 async function applyLanguage(locale) {
+  const hadQuickStylePrompt = Boolean(quickStylePrompt);
   await loadTranslations(locale);
   applyTranslations(document);
   renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], appState.getState().selectedStyleId, onStyleSelect);
   renderTemplates(dom.templatesList, cachedTemplates, handleTemplateReuse);
+  if (hadQuickStylePrompt) {
+    const styleId = appState.getState().selectedStyleId;
+    quickStylePrompt = t("style.quickPrompt", { style: t(`style.${styleId}`) });
+    setPrompt(dom.promptInput, quickStylePrompt);
+  }
+  updateActionButtonLabel();
   updateVersionIndicator();
   await refreshHistory();
   // Settings modal has a couple of JS-driven labels (api key status text, the show/hide-key
@@ -266,6 +310,8 @@ function startNewConversation() {
 // edits) the first image, from whatever the user writes in the same prompt box — see
 // handleEditClick(). Purely local: no IPC, no Gemini call.
 function startNewProject() {
+  quickStylePrompt = null;
+  promptBeforeQuickStyle = null;
   appState.setState({ versionHistory: [], versionCursor: -1 });
   clearOriginalImage();
   renderCurrentVersion();
@@ -311,6 +357,22 @@ async function pasteImageFromClipboard() {
     window.axion.debugLog("Paste Image flow threw", { message: error.message, stack: error.stack });
     setStatus(dom.statusBar, t("error.corruptImage"), "error");
   }
+}
+
+function handleUseAsOriginalClick() {
+  const { versionHistory, versionCursor } = appState.getState();
+  if (versionCursor <= 0) return;
+  if (!window.confirm(t("confirm.useAsOriginal"))) return;
+
+  const image = versionHistory[versionCursor].image;
+  quickStylePrompt = null;
+  promptBeforeQuickStyle = null;
+  appState.setState({ selectedStyleId: null });
+  renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], null, onStyleSelect);
+  showOriginalImage(`data:${image.mimeType};base64,${image.base64}`);
+  handleImageSelected({ ...image, sourceFormat: image.mimeType.split("/")[1] ?? "png", wasConverted: false });
+  setPrompt(dom.promptInput, "");
+  setStatus(dom.statusBar, t("status.promotedToOriginal"), "success");
 }
 
 function handleGlobalPasteShortcut(event) {
@@ -662,7 +724,14 @@ async function init() {
   dom.redoButton.addEventListener("click", handleRedoClick);
 
   dom.editImageButton.addEventListener("click", handleEditClick);
+  dom.promptInput.addEventListener("input", () => {
+    if (!quickStylePrompt) return;
+    quickStylePrompt = null;
+    promptBeforeQuickStyle = null;
+    updateActionButtonLabel();
+  });
   dom.copyImageButton.addEventListener("click", handleCopyClick);
+  dom.useAsOriginalButton.addEventListener("click", handleUseAsOriginalClick);
   dom.saveImageButton.addEventListener("click", handleSaveClick);
   dom.pasteImageButton.addEventListener("click", pasteImageFromClipboard);
   dom.originalImage.addEventListener("contextmenu", handleImageContextMenu);
