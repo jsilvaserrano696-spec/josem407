@@ -29,6 +29,7 @@ function buildAppMenu(browserWindow, locale = "es", developerMode = false) {
         {
           label: strings["menu.settings"],
           accelerator: "CmdOrCtrl+,",
+          registerAccelerator: false,
           click: () => browserWindow.webContents.send(channels.MENU_OPEN_SETTINGS),
         },
         { type: "separator" },
