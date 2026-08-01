@@ -50,11 +50,13 @@ function buildAppMenu(browserWindow, locale = "es", developerMode = false) {
         {
           label: strings["menu.undo"],
           accelerator: "CmdOrCtrl+Z",
+          registerAccelerator: false,
           click: () => browserWindow.webContents.send(channels.MENU_UNDO),
         },
         {
           label: strings["menu.redo"],
           accelerator: "CmdOrCtrl+Shift+Z",
+          registerAccelerator: false,
           click: () => browserWindow.webContents.send(channels.MENU_REDO),
         },
         { type: "separator" },

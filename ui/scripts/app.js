@@ -536,6 +536,16 @@ function handleRedoClick() {
   persistCurrentProject();
 }
 
+function handleVersionShortcut(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== "z") return;
+  // Own the shortcut in the renderer so a focused prompt textarea cannot consume the first
+  // press as text undo. The native menu only displays the accelerator; it does not register it.
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (event.shiftKey) handleRedoClick();
+  else handleUndoClick();
+}
+
 async function handleSaveClick() {
   const { versionHistory, versionCursor } = appState.getState();
   if (versionCursor < 0) return;
@@ -765,6 +775,7 @@ async function init() {
   });
   window.addEventListener("keydown", handlePreviewKeydown, true);
   window.addEventListener("keydown", handleGlobalPasteShortcut, true);
+  window.addEventListener("keydown", handleVersionShortcut, true);
 
   dom.clearHistoryButton.addEventListener("click", async () => {
     await window.axion.clearHistory();
