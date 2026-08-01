@@ -63,7 +63,7 @@ function buildAppMenu(browserWindow, locale = "es", developerMode = false) {
         { type: "separator" },
         { role: "cut", label: strings["menu.cut"] },
         { role: "copy", label: strings["menu.copy"] },
-        { role: "paste", label: strings["menu.paste"] },
+        { role: "paste", label: strings["menu.paste"], registerAccelerator: false },
         { role: "selectAll", label: strings["menu.selectAll"] },
       ],
     },
