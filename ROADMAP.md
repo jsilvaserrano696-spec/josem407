@@ -75,7 +75,7 @@
 | Memoria de estilos | 🔍 Por investigar | Nueva |
 | Perfiles de trabajo | 🔍 Por investigar | Nueva |
 | Aprendizaje de preferencias del usuario | 🔍 Por investigar | Nueva — implica decisiones de privacidad/almacenamiento a definir antes de diseñar nada |
-| Selección automática del mejor modelo de IA | 🔍 Por investigar | Hoy la app usa un único modelo fijo (`gemini-2.5-flash-image`), sin selector de ningún tipo — cuando preguntaste por "Nano Banana 2" se confirmó que esa opción no existe en el código. Este punto de 2.0 es, literalmente, dónde esa pregunta encontraría una respuesta real algún día |
+| Selección automática del mejor modelo de IA | 🔍 Por investigar | AXION 1.1.5 usa Nano Banana 2 (`gemini-3.1-flash-image`) como modelo fijo, sin selector. La investigación futura consiste en decidir automáticamente entre modelos cuando exista una ventaja real; Nano Banana 2 ya está operativo. |
 
 ---
 
@@ -88,7 +88,7 @@
 - **Storyboard** — idea nueva, sin ninguna base previa en el proyecto ni en el código actual.
 - **Ramas de edición** — idea nueva. Conceptualmente roza el Modo Conversación actual (que ya mantiene una sesión de turnos por imagen), pero "ramas" implicaría poder bifurcar esa sesión en variantes distintas — algo que hoy no existe ni está preparado.
 - **Director de escena** — idea nueva. Enlaza directamente con el lema que motivó el Modo Matriz + Referencia: que la app deje de ser "solo un editor" y combine varias fuentes con criterio.
-- **Selección automática del modelo** — también aparece en v2.0 tal cual ("Selección automática del mejor modelo de IA"); misma nota: hoy no existe ningún selector de modelo en el código, uno solo fijo (`gemini-2.5-flash-image`).
+- **Selección automática del modelo** — también aparece en v2.0 tal cual ("Selección automática del mejor modelo de IA"); hoy no existe selector y AXION utiliza un único modelo fijo, Nano Banana 2 (`gemini-3.1-flash-image`).
 
 ---
 

@@ -178,7 +178,7 @@ Esto da tres niveles de compatibilidad futura, de menor a mayor cambio:
 
 ### Por qué no se añade selector de modelo en la UI
 
-Hoy la app no expone ningún selector de modelo (una sola constante interna, `gemini-2.5-flash-image`) y este diseño mantiene esa misma filosofía a propósito: el modelo es un detalle de implementación, no una decisión que el usuario deba tomar para entender "Matriz" y "Referencia". Si en el futuro hay una razón de producto real para exponer elección de modelo, es una decisión de UX independiente de este diseño, no un requisito del sistema de roles.
+Hoy la app no expone ningún selector de modelo (usa internamente `gemini-3.1-flash-image`, Nano Banana 2) y este diseño mantiene esa misma filosofía a propósito: el modelo es un detalle de implementación, no una decisión que el usuario deba tomar para entender "Matriz" y "Referencia". Si en el futuro hay una razón de producto real para exponer elección de modelo, es una decisión de UX independiente de este diseño, no un requisito del sistema de roles.
 
 ---
 

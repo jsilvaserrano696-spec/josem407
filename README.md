@@ -1,7 +1,7 @@
 # AXION
 
 A professional desktop AI image editor for Windows, built with Electron and
-powered by Google's **Gemini 2.5 Flash Image** ("Nano Banana") model.
+powered by Google's **Gemini 3.1 Flash Image** ("Nano Banana 2") model.
 
 Drag in an image, describe an edit in plain English (or by voice), and get a
 result back — with an AI prompt optimizer, a 12-style built-in style library,
@@ -64,8 +64,12 @@ lands in `dist/`.
 - **Voice commands** — click the mic and speak an instruction; it's transcribed
   straight into the prompt box
 - **Conversation Mode** — follow-up edits ("now make it rain") build on the
-  previous result instead of starting over, using Gemini's native multi-turn
-  chat session
+  visible version instead of starting over, while AXION manages the version
+  history locally
+- **High-resolution output** — requests 4K output from Nano Banana 2; exact
+  pixel dimensions depend on the generated aspect ratio
+- **PNG and JPEG export** — PNG is the lossless default; JPEG creates a
+  compressed, full-resolution copy suitable for email and sharing
 - **Prompt History** — every edit is saved, reusable and editable, with
   favorites
 - **Templates** — a handful of built-in starting-point prompts in the sidebar

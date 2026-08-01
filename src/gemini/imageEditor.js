@@ -1,5 +1,5 @@
 // Core image-editing logic: turns a prompt + a source image (plus, usually, the original image
-// as a fidelity anchor — see editImage() below) into an edited image via Gemini 2.5 Flash Image.
+// as a fidelity anchor — see editImage() below) into an edited image via Nano Banana 2.
 // Always a single, stateless request — there is no server-side chat session and no memory
 // between calls. The renderer's own version history (see ARCHITECTURE.md's "Version history &
 // Undo/Redo" and "Fidelity anchor") is what decides which image counts as "current"; it's sent
