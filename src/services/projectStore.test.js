@@ -18,6 +18,7 @@ function validProject(overrides = {}) {
     versionCursor: 0,
     selectedStyleId: null,
     conversationMode: true,
+    activePrompt: "Dame una polla de plástico",
     ...overrides,
   };
 }
@@ -39,6 +40,7 @@ test("normalizeProject accepts a valid project and strips unknown fields", () =>
   assert.equal(result.schemaVersion, 1);
   assert.equal(result.unknown, undefined);
   assert.equal(result.versionHistory[0].image.base64, "AAAA");
+  assert.equal(result.activePrompt, "Dame una polla de plástico");
 });
 
 test("normalizeProject rejects unsupported schemas and empty histories", () => {
@@ -87,6 +89,25 @@ test("store round-trip saves and restores the complete normalized project", () =
   const store = createProjectStore({ fileSystem, filePath: "C:/memory/current-project.json" });
   assert.equal(store.saveProject(validProject()), true);
   assert.deepEqual(store.loadProject(), normalizeProject(validProject()));
+});
+
+test("normalizeProject keeps a deliberately cleared active prompt", () => {
+  const result = normalizeProject(
+    validProject({
+      activePrompt: "",
+      versionHistory: [{ ...validProject().versionHistory[0], prompt: "historical instruction" }],
+    })
+  );
+  assert.equal(result.activePrompt, "");
+  assert.equal(result.versionHistory[0].prompt, "historical instruction");
+});
+
+test("legacy projects derive the active prompt from the visible version", () => {
+  const project = validProject({
+    versionHistory: [{ ...validProject().versionHistory[0], prompt: "legacy instruction" }],
+  });
+  delete project.activePrompt;
+  assert.equal(normalizeProject(project).activePrompt, "legacy instruction");
 });
 
 test("store returns null for missing, corrupt, or structurally invalid files", () => {

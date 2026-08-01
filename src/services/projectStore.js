@@ -52,6 +52,12 @@ function normalizeProject(project) {
     versionCursor: project.versionCursor,
     selectedStyleId: typeof project.selectedStyleId === "string" ? project.selectedStyleId : null,
     conversationMode: project.conversationMode !== false,
+    // Older project files did not distinguish the active editor text from the prompt stored
+    // on an image version. Preserve their previous restore behavior as a migration fallback.
+    activePrompt:
+      typeof project.activePrompt === "string"
+        ? project.activePrompt
+        : versionHistory[project.versionCursor].prompt ?? "",
   };
 }
 

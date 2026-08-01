@@ -104,7 +104,13 @@ function persistCurrentProject() {
   const { versionHistory, versionCursor, selectedStyleId, conversationMode } = appState.getState();
   if (versionHistory.length === 0) return;
   window.axion
-    .saveProject({ versionHistory, versionCursor, selectedStyleId, conversationMode })
+    .saveProject({
+      versionHistory,
+      versionCursor,
+      selectedStyleId,
+      conversationMode,
+      activePrompt: dom.promptInput.value,
+    })
     .catch((error) => window.axion.debugLog("Project autosave failed", { message: error.message }));
 }
 
@@ -715,7 +721,7 @@ async function init() {
     showOriginalImage(`data:${original.mimeType};base64,${original.base64}`);
     renderCurrentVersion();
     updateActionButtonLabel();
-    setPrompt(dom.promptInput, restoredProject.versionHistory[restoredProject.versionCursor].prompt ?? "");
+    setPrompt(dom.promptInput, restoredProject.activePrompt);
     projectRestored = true;
   }
 
