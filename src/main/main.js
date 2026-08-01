@@ -42,10 +42,19 @@ function createWindow() {
   // Hidden developer-mode toggle (see DESIGN_PHILOSOPHY.md) — deliberately not a menu item or
   // button, so it's never reachable by accident. Scoped to this window's input (not
   // globalShortcut) so it only fires while AXION itself has focus.
-  mainWindow.webContents.on("before-input-event", (_event, input) => {
-    if (input.type !== "keyDown" || !input.control || !input.shift || !input.alt) return;
-    if (input.key.toLowerCase() !== "d") return;
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
 
+    const commandKey = input.control || input.meta;
+    if (commandKey && !input.alt && input.key.toLowerCase() === "z") {
+      // Capture before Chromium's focused textarea consumes the first press as text undo.
+      // Preventing the native event also avoids the menu accelerator firing a second time.
+      event.preventDefault();
+      mainWindow.webContents.send(input.shift ? channels.MENU_REDO : channels.MENU_UNDO);
+      return;
+    }
+
+    if (!input.control || !input.shift || !input.alt || input.key.toLowerCase() !== "d") return;
     const enabled = configStore.toggleDeveloperMode();
     mainWindow.setMenu(buildAppMenu(mainWindow, configStore.getSettings().language, enabled));
   });
