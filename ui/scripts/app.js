@@ -58,6 +58,7 @@ const dom = {
   newConversationButton: el("new-conversation-button"),
   undoButton: el("undo-button"),
   redoButton: el("redo-button"),
+  versionIndicator: el("version-indicator"),
   styleLibrary: el("style-library"),
   promptInput: el("prompt-input"),
   voiceButton: el("voice-button"),
@@ -101,6 +102,22 @@ function updateUndoRedoButtons() {
   dom.redoButton.disabled = isBusy || versionCursor >= versionHistory.length - 1;
 }
 
+function updateVersionIndicator() {
+  const { versionHistory, versionCursor } = appState.getState();
+  const version = versionCursor >= 0 ? versionHistory[versionCursor] : null;
+  if (!version) {
+    dom.versionIndicator.textContent = "";
+    dom.versionIndicator.classList.add("hidden");
+    return;
+  }
+
+  dom.versionIndicator.textContent =
+    versionCursor === 0 && version.prompt === null
+      ? t("version.original")
+      : t("version.position", { current: versionCursor + 1, total: versionHistory.length });
+  dom.versionIndicator.classList.remove("hidden");
+}
+
 // Paints whatever version.versionCursor currently points at — including version 0, the
 // original: Undo must visibly restore "the previous state", and hiding it behind the empty
 // placeholder made Undo look like it did nothing. The placeholder is reserved for the one case
@@ -127,6 +144,7 @@ function renderCurrentVersion() {
     dom.copyImageButton.disabled = false;
     dom.saveImageButton.disabled = isUneditedImport;
   }
+  updateVersionIndicator();
   updateUndoRedoButtons();
 }
 
@@ -213,6 +231,7 @@ async function applyLanguage(locale) {
   applyTranslations(document);
   renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], appState.getState().selectedStyleId, onStyleSelect);
   renderTemplates(dom.templatesList, cachedTemplates, handleTemplateReuse);
+  updateVersionIndicator();
   await refreshHistory();
   // Settings modal has a couple of JS-driven labels (api key status text, the show/hide-key
   // icon's title) that data-i18n* doesn't cover, since their content depends on app state, not
