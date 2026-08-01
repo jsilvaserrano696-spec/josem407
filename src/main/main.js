@@ -42,8 +42,17 @@ function createWindow() {
   // Hidden developer-mode toggle (see DESIGN_PHILOSOPHY.md) — deliberately not a menu item or
   // button, so it's never reachable by accident. Scoped to this window's input (not
   // globalShortcut) so it only fires while AXION itself has focus.
-  mainWindow.webContents.on("before-input-event", (_event, input) => {
+  mainWindow.webContents.on("before-input-event", (event, input) => {
     if (input.type !== "keyDown") return;
+
+    // Electron's fullscreen menu role toggles the window correctly, but on Windows Escape
+    // does not leave that state automatically. Always provide the conventional escape route;
+    // when the window is not fullscreen, Escape continues to the renderer for previews/settings.
+    if (input.key === "Escape" && mainWindow.isFullScreen()) {
+      event.preventDefault();
+      mainWindow.setFullScreen(false);
+      return;
+    }
 
     if (!input.control || !input.shift || !input.alt || input.key.toLowerCase() !== "d") return;
     const enabled = configStore.toggleDeveloperMode();
