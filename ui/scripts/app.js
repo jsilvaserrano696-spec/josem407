@@ -147,10 +147,9 @@ function updateVersionIndicator() {
 // placeholder made Undo look like it did nothing. The placeholder is reserved for the one case
 // where there's truly no version loaded at all (versionCursor === -1).
 //
-// Save is disabled at version 0 only when that version came from an imported file (prompt is
-// null — see handleImageSelected) — there's nothing new to save, it's already on disk. A
-// version 0 created from a prompt (the "New" flow, see handleEditClick) has never touched disk
-// anywhere, so it must be savable immediately.
+// Every visible version is exportable, including an untouched import. That makes Save useful
+// as a built-in format converter/compressor: load a PNG (or any supported input) and save it
+// directly as JPEG without first spending a Gemini edit or opening another application.
 function renderCurrentVersion() {
   const { versionHistory, versionCursor } = appState.getState();
   const version = versionCursor >= 0 ? versionHistory[versionCursor] : null;
@@ -163,12 +162,12 @@ function renderCurrentVersion() {
   } else {
     const dataUrl = `data:${version.image.mimeType};base64,${version.image.base64}`;
     showImage(dom.editedImage, dom.editedPlaceholder, dataUrl);
-    const isUneditedImport = versionCursor === 0 && version.prompt === null;
-    // Copy always applies to whatever image is visible, including a freshly imported original.
-    // Save keeps its narrower rule because that original is already present on disk.
+    // Copy and Save always apply to whatever image is visible, including a freshly imported
+    // original. The native Save dialog decides whether the output is lossless PNG or a
+    // compressed JPEG sharing copy.
     dom.copyImageButton.disabled = false;
     dom.useAsOriginalButton.disabled = versionCursor <= 0;
-    dom.saveImageButton.disabled = isUneditedImport;
+    dom.saveImageButton.disabled = false;
   }
   updateVersionIndicator();
   updateUndoRedoButtons();
@@ -594,7 +593,6 @@ async function handleSaveClick() {
   const { versionHistory, versionCursor } = appState.getState();
   if (versionCursor < 0) return;
   const version = versionHistory[versionCursor];
-  if (versionCursor === 0 && version.prompt === null) return;
   const { image } = version;
 
   const suggestedName = `axion-edit-${Date.now()}.png`;

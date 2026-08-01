@@ -1,6 +1,6 @@
 {
   "name": "axion",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "Professional desktop AI image editor powered by Google's Gemini 3.1 Flash Image (Nano Banana 2)",
   "main": "src/main/main.js",
   "author": "",
