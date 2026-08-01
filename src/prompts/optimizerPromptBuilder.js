@@ -107,13 +107,19 @@ function buildOptimizerMetaPrompt({ userPrompt, styleFragment, priorEdits, hasIm
       (hasImage ? " Where your analysis found specific strengths, name them explicitly here." : ""),
     "- Add as much descriptive, professional, technical detail as the change needs to be fully " +
       "realized — but only about the element being changed. Never invent new detail about " +
-      "anything the user didn't mention.",
-    "- Preserve facial identity and the subject's core likeness unless the user explicitly asks " +
-      "to change them.",
+      "anything the user didn't mention."
   );
 
   if (hasImage) {
     lines.push(
+      "- FACE IDENTITY LOCK: Unless the user explicitly requests a facial change, preserve the " +
+        "exact same person and facial geometry: head shape, eyes, nose, mouth, jaw, age, skin " +
+        "features, expression, gaze direction, head angle, hair, beard, and visible scars. Never " +
+        "regenerate, beautify, recast, or reinterpret the face. For broad requests such as " +
+        "'improve the image', you may improve only the existing face's rendering quality " +
+        "(clarity, noise, natural texture, and technically consistent light) while keeping all " +
+        "identity-bearing features and their exact spatial relationships unchanged. If the face " +
+        "is small or lacks detail, do not invent new features to make it sharper.",
       "- Output using exactly this format, both sections present:",
       "### DIAGNOSIS",
       "(2-4 sentences: what's strong, what's weak, and — if relevant — which element sets the " +

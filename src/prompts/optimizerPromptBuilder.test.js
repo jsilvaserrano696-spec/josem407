@@ -56,3 +56,29 @@ test("the detected-elements section is always the last thing in the meta-prompt"
   assert.equal(prompt.slice(sectionIndex).includes("Requested visual style"), false);
   assert.equal(prompt.slice(sectionIndex).includes("Changes already applied"), false);
 });
+
+test("image edits carry an explicit facial identity lock including gaze and head angle", () => {
+  const prompt = buildOptimizerMetaPrompt({
+    userPrompt: "Mejora la imagen",
+    styleFragment: null,
+    priorEdits: null,
+    hasImage: true,
+  });
+
+  assert.match(prompt, /FACE IDENTITY LOCK/);
+  assert.match(prompt, /expression, gaze direction, head angle, hair, beard/);
+  assert.match(prompt, /Never regenerate, beautify, recast, or reinterpret the face/);
+  assert.match(prompt, /If the face is small or lacks detail, do not invent new features/);
+});
+
+test("from-scratch generation does not receive an inapplicable face identity lock", () => {
+  const prompt = buildOptimizerMetaPrompt({
+    userPrompt: "Crea un retrato de un caballero",
+    styleFragment: null,
+    priorEdits: null,
+    hasImage: false,
+  });
+
+  assert.doesNotMatch(prompt, /FACE IDENTITY LOCK/);
+  assert.doesNotMatch(prompt, /exact same person and facial geometry/);
+});
