@@ -3,7 +3,7 @@
 // "Settings" item that tells the renderer to open its Settings modal. Developer Tools are only
 // ever added to this menu when developerMode is on (see src/main/main.js's hidden shortcut) —
 // per DESIGN_PHILOSOPHY.md, nothing that exposes internals is reachable by accident.
-const { Menu, app } = require("electron");
+const { Menu, app, dialog } = require("electron");
 const channels = require("../shared/ipcChannels");
 const { loadLocaleStrings: loadMenuStrings } = require("../shared/localeStrings");
 
@@ -85,7 +85,16 @@ function buildAppMenu(browserWindow, locale = "es", developerMode = false) {
       submenu: [
         {
           label: strings["menu.about"].replace("{name}", app.getName()),
-          click: () => browserWindow.webContents.send(channels.MENU_OPEN_SETTINGS),
+          click: () =>
+            dialog.showMessageBox(browserWindow, {
+              type: "info",
+              title: strings["about.title"],
+              message: `${app.getName()} ${app.getVersion()}`,
+              detail: strings["about.detail"],
+              buttons: [strings["about.close"]],
+              defaultId: 0,
+              noLink: true,
+            }),
         },
       ],
     },

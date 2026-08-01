@@ -165,5 +165,8 @@
   "menu.zoomOut": "Alejar",
   "menu.toggleFullScreen": "Pantalla completa",
   "menu.help": "Ayuda",
-  "menu.about": "Acerca de {name}"
+  "menu.about": "Acerca de {name}",
+  "about.title": "Acerca de AXION",
+  "about.detail": "Editor de imágenes con inteligencia artificial.\n\nAXION · Lentos pero seguros",
+  "about.close": "Cerrar"
 }

@@ -163,5 +163,8 @@
   "menu.zoomOut": "Zoom Out",
   "menu.toggleFullScreen": "Toggle Full Screen",
   "menu.help": "Help",
-  "menu.about": "About {name}"
+  "menu.about": "About {name}",
+  "about.title": "About AXION",
+  "about.detail": "AI-powered image editor.\n\nAXION · Slow but steady",
+  "about.close": "Close"
 }
