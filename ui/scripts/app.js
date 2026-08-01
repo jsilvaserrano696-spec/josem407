@@ -15,6 +15,7 @@ import { renderHistory } from "./components/historyPanel.js";
 import { wireSettingsModal } from "./components/settingsModal.js";
 import { generateId, sleep } from "./utils.js";
 import { loadTranslations, t, applyTranslations } from "./i18n/i18n.js";
+import { makeEdgeBackgroundTransparent } from "./services/backgroundRemoval.js";
 
 // ============================================================================
 // TEMP DEBUG — global renderer crash handlers, installed as early as possible so nothing here
@@ -87,6 +88,7 @@ let cachedTemplates = [];
 let settingsModalRef = null;
 let quickStylePrompt = null;
 let promptBeforeQuickStyle = null;
+let activeTemplateId = null;
 // Reassigned once initDropzone() runs in init() — needed here too so the "New" project flow
 // (starting/mirroring a project with no source file) can reuse the same Original-panel display
 // logic dropzone.js already owns, instead of duplicating it.
@@ -236,6 +238,7 @@ async function refreshHistory() {
 }
 
 function onStyleSelect(styleId) {
+  activeTemplateId = null;
   appState.setState({ selectedStyleId: styleId });
   renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], styleId, onStyleSelect);
   const hasImage = appState.getState().versionHistory.length > 0;
@@ -266,6 +269,9 @@ function onStyleSelect(styleId) {
 function handleTemplateReuse(template, label) {
   quickStylePrompt = null;
   promptBeforeQuickStyle = null;
+  activeTemplateId = template.id;
+  appState.setState({ selectedStyleId: null });
+  renderStyleLibrary(dom.styleLibrary, [...stylesById.values()], null, onStyleSelect);
   setPrompt(dom.promptInput, template.prompt);
   updateActionButtonLabel();
   setStatus(dom.statusBar, t("status.templateLoaded", { label }), "info");
@@ -312,6 +318,7 @@ function startNewConversation() {
 function startNewProject() {
   quickStylePrompt = null;
   promptBeforeQuickStyle = null;
+  activeTemplateId = null;
   appState.setState({ versionHistory: [], versionCursor: -1 });
   clearOriginalImage();
   renderCurrentVersion();
@@ -321,6 +328,7 @@ function startNewProject() {
 }
 
 function handleImageSelected(image) {
+  activeTemplateId = null;
   const original = {
     id: generateId(),
     versionNumber: 0,
@@ -448,7 +456,7 @@ async function handleEditClick() {
     // Past the very first version, always send the original back too — see
     // ARCHITECTURE.md's "Fidelity anchor": it's what keeps small deviations from one edit from
     // compounding into the next, since the true original never drops out of the conversation.
-    const result = isCreating
+    let result = isCreating
       ? await window.axion.generateImage({ prompt: promptText, displayPrompt: userPrompt, styleId: selectedStyleId })
       : await window.axion.editImage({
           prompt: promptText,
@@ -460,6 +468,11 @@ async function handleEditClick() {
           displayPrompt: userPrompt,
           styleId: selectedStyleId,
         });
+
+    if (activeTemplateId === "remove-background") {
+      setStatus(dom.statusBar, t("status.removingBackground"), "info");
+      result = await makeEdgeBackgroundTransparent(result);
+    }
 
     // TEMP DEBUG: measure actual paint time via the <img> load event, and confirm the Edited
     // panel really received/decoded the image (same naturalWidth/naturalHeight check used
@@ -490,6 +503,8 @@ async function handleEditClick() {
       styleId: selectedStyleId,
       image: { base64: result.base64, mimeType: result.mimeType },
     });
+
+    activeTemplateId = null;
 
     setStatus(dom.statusBar, t(isCreating ? "status.createComplete" : "status.editComplete"), "success");
     refreshHistory();
@@ -725,6 +740,7 @@ async function init() {
 
   dom.editImageButton.addEventListener("click", handleEditClick);
   dom.promptInput.addEventListener("input", () => {
+    activeTemplateId = null;
     if (!quickStylePrompt) return;
     quickStylePrompt = null;
     promptBeforeQuickStyle = null;

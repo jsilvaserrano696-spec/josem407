@@ -19,7 +19,10 @@ const SEED_TEMPLATES = [
   {
     id: "remove-background",
     label: "Remove Background",
-    prompt: "Remove the background completely and replace it with a clean, transparent background.",
+    prompt:
+      "Precisely isolate the main subject and replace the entire background with uniform pure white " +
+      "(#FFFFFF), with no shadows, floor, texture, or additional elements. Preserve every edge and " +
+      "detail of the subject unchanged.",
   },
   {
     id: "product-shot",

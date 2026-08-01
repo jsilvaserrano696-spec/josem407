@@ -69,6 +69,7 @@
   "history.delete.title": "Eliminar",
 
   "templates.empty": "Aún no hay plantillas.",
+  "templates.use": "Usar",
 
   "voice.unavailable": "El reconocimiento de voz no está disponible en este entorno.",
   "voice.listening": "Escuchando…",
@@ -96,6 +97,7 @@
   "status.analyzing": "Analizando la imagen…",
   "status.promptOptimized": "✨ Instrucción optimizada",
   "status.generating": "Generando imagen…",
+  "status.removingBackground": "Creando transparencia real…",
   "status.editComplete": "Edición completada.",
   "status.createComplete": "Imagen creada.",
   "status.imageCopied": "Imagen copiada al portapapeles.",
@@ -137,7 +139,7 @@
   "template.portrait-enhance": "Mejorar Retrato",
   "template.portrait-enhance.prompt": "Mejora este retrato con iluminación de estudio profesional, retoque de piel natural, enfoque nítido en los ojos y un fondo ligeramente difuminado, conservando la identidad del sujeto.",
   "template.remove-background": "Quitar Fondo",
-  "template.remove-background.prompt": "Elimina el fondo por completo y sustitúyelo por un fondo limpio y transparente.",
+  "template.remove-background.prompt": "Aísla con precisión el sujeto principal y sustituye todo el fondo por blanco puro uniforme (#FFFFFF), sin sombras, suelo, textura ni elementos adicionales. Conserva intactos todos los bordes y detalles del sujeto.",
   "template.product-shot": "Foto de Producto Limpia",
   "template.product-shot.prompt": "Coloca el producto sobre un fondo blanco de estudio sin costuras, con iluminación suave y uniforme y una sombra realista sutil, con calidad de catálogo de comercio electrónico.",
 

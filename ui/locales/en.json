@@ -69,6 +69,7 @@
   "history.delete.title": "Delete",
 
   "templates.empty": "No templates yet.",
+  "templates.use": "Use",
 
   "voice.unavailable": "Voice recognition isn't available in this environment.",
   "voice.listening": "Listening…",
@@ -96,6 +97,7 @@
   "status.analyzing": "Analyzing the image…",
   "status.promptOptimized": "✨ Instruction optimized",
   "status.generating": "Generating image…",
+  "status.removingBackground": "Creating true transparency…",
   "status.editComplete": "Edit complete.",
   "status.createComplete": "Image created.",
   "status.imageCopied": "Image copied to the clipboard.",
@@ -136,6 +138,7 @@
 
   "template.portrait-enhance": "Enhance Portrait",
   "template.remove-background": "Remove Background",
+  "template.remove-background.prompt": "Precisely isolate the main subject and replace the entire background with uniform pure white (#FFFFFF), with no shadows, floor, texture, or additional elements. Preserve every edge and detail of the subject unchanged.",
   "template.product-shot": "Clean Product Shot",
 
   "menu.file": "File",

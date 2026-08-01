@@ -30,13 +30,24 @@ export function renderTemplates(containerEl, templates, onReuse) {
     const item = document.createElement("li");
     item.className = "template-item";
     item.innerHTML = `
-      <div class="template-item-label">${escapeHtml(label)}</div>
+      <div class="template-item-heading">
+        <div class="template-item-label">${escapeHtml(label)}</div>
+        <span class="template-item-action">${escapeHtml(t("templates.use"))} →</span>
+      </div>
       <div class="template-item-prompt">${escapeHtml(prompt)}</div>
     `;
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
     // Pass the already-localized prompt through, not the raw stored one — app.js's
     // handleTemplateReuse() fills the user's prompt box with whatever `template.prompt` is
     // handed here.
     item.addEventListener("click", () => onReuse({ ...template, prompt }, label));
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onReuse({ ...template, prompt }, label);
+      }
+    });
     containerEl.appendChild(item);
   });
 }
