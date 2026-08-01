@@ -26,3 +26,20 @@ test("matrix/reference prompt preserves the user's text literally", () => {
 
   assert.ok(result.endsWith(userPrompt));
 });
+
+test("reference protocol blocks unrequested text, logos, subjects, and scene content", () => {
+  const result = buildMatrixReferencePrompt({ userPrompt: "usa únicamente el acabado del metal" });
+
+  assert.match(result, /Never copy or introduce its text, lettering, captions, logos, watermarks, symbols/);
+  assert.match(result, /people, faces, animals, objects, buildings, scenery, or composition/);
+  assert.match(result, /If text or lettering is not explicitly requested, add no text/);
+  assert.match(result, /complete transfer whitelist/);
+});
+
+test("matrix remains the owner of existing text, logos, layout, and content", () => {
+  const result = buildMatrixReferencePrompt({ userPrompt: "aplica su iluminación" });
+
+  assert.match(result, /MATRIX and owns all final-image content/);
+  assert.match(result, /text, logos, symbols/);
+  assert.match(result, /Remove every new element/);
+});

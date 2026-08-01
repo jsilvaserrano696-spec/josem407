@@ -4,18 +4,21 @@ const IMAGE_ROLES = Object.freeze({
     label: "MATRIX",
     priority: 0,
     modelInstruction:
-      "The source image is the MATRIX: it owns the subject's identity, proportions, core " +
-      "likeness, and defining structure. Preserve those attributes unless the user explicitly " +
-      "asks to change them.",
+      "The source image is the MATRIX and owns all final-image content: subjects, identity, " +
+      "proportions, pose, objects, architecture, framing, layout, text, logos, symbols, and " +
+      "defining structure. Preserve every one of those unless the user instruction explicitly " +
+      "names it as something to change.",
   }),
   reference: Object.freeze({
     id: "reference",
     label: "REFERENCE",
     priority: 10,
     modelInstruction:
-      "The reference image is inspiration only. Use it only for the visual qualities requested " +
-      "by the user, such as style, lighting, setting, composition, palette, materials, or " +
-      "clothing. Never replace the MATRIX subject or identity with the reference subject.",
+      "The reference image is a sealed visual sample, not a source of content. Transfer only " +
+      "the specific visual qualities explicitly requested by the user. Never copy or introduce " +
+      "its text, lettering, captions, logos, watermarks, symbols, people, faces, animals, " +
+      "objects, buildings, scenery, or composition unless the user explicitly asks for that " +
+      "exact category. Never replace the MATRIX subject or identity with the reference subject.",
   }),
 });
 
