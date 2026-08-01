@@ -91,6 +91,16 @@ test("store round-trip saves and restores the complete normalized project", () =
   assert.deepEqual(store.loadProject(), normalizeProject(validProject()));
 });
 
+test("project persistence keeps an optional reference image", () => {
+  const referenceImage = { base64: "REFERENCE", mimeType: "image/jpeg" };
+  assert.deepEqual(normalizeProject(validProject({ referenceImage })).referenceImage, referenceImage);
+});
+
+test("legacy and malformed reference images safely normalize to null", () => {
+  assert.equal(normalizeProject(validProject()).referenceImage, null);
+  assert.equal(normalizeProject(validProject({ referenceImage: { base64: "", mimeType: "image/png" } })).referenceImage, null);
+});
+
 test("normalizeProject keeps a deliberately cleared active prompt", () => {
   const result = normalizeProject(
     validProject({

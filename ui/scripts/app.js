@@ -16,6 +16,7 @@ import { wireSettingsModal } from "./components/settingsModal.js";
 import { generateId, sleep } from "./utils.js";
 import { loadTranslations, t, applyTranslations } from "./i18n/i18n.js";
 import { makeEdgeBackgroundTransparent } from "./services/backgroundRemoval.js";
+import { createReferenceSlot } from "./components/roleSlotPanel.js";
 
 // ============================================================================
 // TEMP DEBUG — global renderer crash handlers, installed as early as possible so nothing here
@@ -47,6 +48,7 @@ const dom = {
   addImageButton: el("add-image-button"),
   pasteImageButton: el("paste-image-button"),
   originalImage: el("original-image"),
+  originalGallery: el("original-gallery"),
   editedImage: el("edited-image"),
   editedPlaceholder: el("edited-placeholder"),
   imagePreviewModal: el("image-preview-modal"),
@@ -94,6 +96,7 @@ let activeTemplateId = null;
 // logic dropzone.js already owns, instead of duplicating it.
 let showOriginalImage = () => {};
 let clearOriginalImage = () => {};
+let referenceSlotRef = null;
 const speechService = new SpeechService();
 
 function getStyleIcon(styleId) {
@@ -101,13 +104,14 @@ function getStyleIcon(styleId) {
 }
 
 function persistCurrentProject() {
-  const { versionHistory, versionCursor, selectedStyleId, conversationMode } = appState.getState();
+  const { versionHistory, versionCursor, selectedStyleId, referenceImage, conversationMode } = appState.getState();
   if (versionHistory.length === 0) return;
   window.axion
     .saveProject({
       versionHistory,
       versionCursor,
       selectedStyleId,
+      referenceImage,
       conversationMode,
       activePrompt: dom.promptInput.value,
     })
@@ -176,6 +180,7 @@ function setBusy(isBusy) {
   dom.browseButton.disabled = isBusy;
   dom.addImageButton.disabled = isBusy;
   dom.pasteImageButton.disabled = isBusy;
+  referenceSlotRef?.setBusy(isBusy);
   dom.newConversationButton.disabled = isBusy;
   setProgressActive(dom.progressBar, isBusy);
   updateUndoRedoButtons();
@@ -301,6 +306,7 @@ async function applyLanguage(locale) {
   }
   updateActionButtonLabel();
   updateVersionIndicator();
+  referenceSlotRef?.setReference(appState.getState().referenceImage);
   await refreshHistory();
   // Settings modal has a couple of JS-driven labels (api key status text, the show/hide-key
   // icon's title) that data-i18n* doesn't cover, since their content depends on app state, not
@@ -335,7 +341,9 @@ function startNewProject() {
   quickStylePrompt = null;
   promptBeforeQuickStyle = null;
   activeTemplateId = null;
-  appState.setState({ versionHistory: [], versionCursor: -1 });
+  appState.setState({ versionHistory: [], versionCursor: -1, referenceImage: null });
+  referenceSlotRef?.setReference(null);
+  referenceSlotRef?.setHasMatrix(false);
   clearOriginalImage();
   renderCurrentVersion();
   updateActionButtonLabel();
@@ -354,6 +362,7 @@ function handleImageSelected(image) {
     image: { base64: image.base64, mimeType: image.mimeType },
   };
   appState.setState({ versionHistory: [original], versionCursor: 0 });
+  referenceSlotRef?.setHasMatrix(true);
   renderCurrentVersion();
   updateActionButtonLabel();
   persistCurrentProject();
@@ -414,7 +423,7 @@ function handleGlobalPasteShortcut(event) {
 // branches converge on the same pushVersion() bookkeeping, so Undo/Redo/History/Save behave
 // identically afterward regardless of how version 0 came to exist.
 async function handleEditClick() {
-  const { versionHistory, versionCursor, selectedStyleId, conversationMode } = appState.getState();
+  const { versionHistory, versionCursor, selectedStyleId, referenceImage, conversationMode } = appState.getState();
   const isCreating = versionHistory.length === 0;
 
   const userPrompt = getPrompt(dom.promptInput);
@@ -481,6 +490,7 @@ async function handleEditClick() {
             sourceVersion.versionNumber > 0
               ? { base64: versionHistory[0].image.base64, mimeType: versionHistory[0].image.mimeType }
               : undefined,
+          referenceImage: referenceImage ?? undefined,
           displayPrompt: userPrompt,
           styleId: selectedStyleId,
         });
@@ -512,6 +522,7 @@ async function handleEditClick() {
       // you started with", so it's what the Original panel shows too. Purely cosmetic; the
       // version-history model doesn't distinguish origin beyond version 0's prompt field.
       showOriginalImage(`data:${result.mimeType};base64,${result.base64}`);
+      referenceSlotRef?.setHasMatrix(true);
     }
 
     pushVersion({
@@ -706,18 +717,36 @@ async function init() {
   showOriginalImage = dropzoneApi.showOriginalImage;
   clearOriginalImage = dropzoneApi.clearOriginalImage;
 
+  referenceSlotRef = createReferenceSlot({
+    containerEl: dom.originalGallery,
+    onSelect: (referenceImage) => {
+      appState.setState({ referenceImage });
+      persistCurrentProject();
+      setStatus(dom.statusBar, t("status.referenceLoaded"), "success");
+    },
+    onRemove: () => {
+      appState.setState({ referenceImage: null });
+      persistCurrentProject();
+      setStatus(dom.statusBar, t("status.referenceRemoved"), "info");
+    },
+    onError: (error) => setStatus(dom.statusBar, error.message, "error"),
+  });
+
   const restoredProject = await window.axion.loadProject();
   if (restoredProject) {
     appState.setState({
       versionHistory: restoredProject.versionHistory,
       versionCursor: restoredProject.versionCursor,
       selectedStyleId: restoredProject.selectedStyleId,
+      referenceImage: restoredProject.referenceImage,
       conversationMode: restoredProject.conversationMode,
     });
     dom.conversationModeToggle.checked = restoredProject.conversationMode;
     renderStyleLibrary(dom.styleLibrary, styles, restoredProject.selectedStyleId, onStyleSelect);
+    referenceSlotRef.setReference(restoredProject.referenceImage);
 
     const original = restoredProject.versionHistory[0].image;
+    referenceSlotRef.setHasMatrix(true);
     showOriginalImage(`data:${original.mimeType};base64,${original.base64}`);
     renderCurrentVersion();
     updateActionButtonLabel();

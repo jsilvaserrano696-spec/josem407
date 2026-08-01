@@ -35,6 +35,18 @@ function normalizeVersion(version, index) {
   };
 }
 
+function normalizeOptionalImage(image) {
+  if (image === null || image === undefined) return null;
+  if (
+    typeof image !== "object" ||
+    typeof image.base64 !== "string" ||
+    !image.base64 ||
+    typeof image.mimeType !== "string" ||
+    !image.mimeType.startsWith("image/")
+  ) return null;
+  return { base64: image.base64, mimeType: image.mimeType };
+}
+
 function normalizeProject(project) {
   if (!project || typeof project !== "object" || project.schemaVersion !== SCHEMA_VERSION) return null;
   if (!Array.isArray(project.versionHistory) || project.versionHistory.length === 0) return null;
@@ -51,6 +63,7 @@ function normalizeProject(project) {
     versionHistory,
     versionCursor: project.versionCursor,
     selectedStyleId: typeof project.selectedStyleId === "string" ? project.selectedStyleId : null,
+    referenceImage: normalizeOptionalImage(project.referenceImage),
     conversationMode: project.conversationMode !== false,
     // Older project files did not distinguish the active editor text from the prompt stored
     // on an image version. Preserve their previous restore behavior as a migration fallback.

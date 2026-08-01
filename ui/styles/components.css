@@ -160,11 +160,7 @@ button:disabled {
   gap: 4px;
 }
 
-/* ---------- Original panel gallery (future thumbnail strip) ----------
-   Not populated or shown yet — this is a prepared extension point for a future multi-image
-   import gallery (see ARCHITECTURE.md). Ready-made classes so that feature only needs to
-   render <img class="gallery-thumb"> children and remove the .hidden class; no layout work
-   left to do at that point. */
+/* ---------- Matrix + optional reference role strip ---------- */
 .image-gallery {
   display: flex;
   gap: 8px;
@@ -192,6 +188,47 @@ button:disabled {
 .gallery-thumb.active {
   border-color: var(--accent);
 }
+
+.role-slot {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  white-space: nowrap;
+}
+
+.role-slot-matrix { color: var(--text-primary); }
+
+.role-slot-add {
+  cursor: pointer;
+  border-style: dashed;
+}
+
+.role-slot-add:hover,
+.role-slot-add.drag-over {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.role-slot-filled .gallery-thumb {
+  width: 40px;
+  height: 40px;
+}
+
+.role-slot-remove {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.role-slot-remove:hover { color: var(--danger, #ef6b73); }
 
 .dropzone {
   flex: 1;

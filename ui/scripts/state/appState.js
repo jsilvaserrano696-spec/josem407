@@ -30,6 +30,7 @@ export const appState = createStore({
   versionHistory: [],
   versionCursor: -1, // -1 = no image loaded yet
   selectedStyleId: null,
+  referenceImage: null,
   conversationMode: true,
   isBusy: false,
 });
