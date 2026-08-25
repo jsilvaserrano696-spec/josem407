@@ -1,23 +1,29 @@
 {
   "name": "axion",
-  "version": "1.1.10",
+  "version": "1.1.35",
   "description": "Professional desktop AI image editor powered by Google's Gemini 3.1 Flash Image (Nano Banana 2)",
   "main": "src/main/main.js",
-  "author": "",
+  "author": "AXION",
   "license": "MIT",
   "private": true,
   "scripts": {
     "start": "electron .",
+    "test": "node --test",
+    "lint": "eslint src ui",
+    "check": "npm run lint && npm test",
     "dist": "electron-builder"
   },
   "dependencies": {
-    "@google/genai": "^2.15.0",
+    "@google/genai": "^2.16.0",
     "dotenv": "^17.4.2",
     "heic-convert": "^2.1.0"
   },
   "devDependencies": {
-    "electron": "^43.1.1",
-    "electron-builder": "^26.15.3"
+    "@eslint/js": "^10.0.1",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0"
   },
   "build": {
     "appId": "com.axion.app",
@@ -27,18 +33,36 @@
     },
     "files": [
       "src/**/*",
+      "!src/**/*.test.js",
       "ui/**/*",
+      "!ui/**/*.test.js",
+      "!ui/**/*.test.mjs",
       "assets/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      }
     ],
     "win": {
       "target": "nsis",
       "icon": "assets/icons/icon.ico"
-    }
+    },
+    "fileAssociations": [
+      {
+        "ext": "axion",
+        "name": "Proyecto AXION",
+        "description": "Proyecto de edición de imágenes AXION",
+        "icon": "assets/icons/icon.ico",
+        "role": "Editor"
+      }
+    ]
   },
   "allowScripts": {
     "electron-winstaller@5.4.0": true,
     "protobufjs@7.6.5": true,
-    "@google/genai@2.15.0": true
+    "@google/genai@2.16.0": true
   }
 }
