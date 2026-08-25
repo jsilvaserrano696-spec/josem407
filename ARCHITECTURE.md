@@ -184,9 +184,10 @@ to it.
   version is still visible in the persisted History sidebar
   (`src/history/historyStore.js`) regardless, since that's a separate,
   chronological, prompt-only log independent of the undo/redo cursor.
-- `versionHistory` is **not** persisted to disk or across app restarts — same as
-  Undo history in any other image editor, it resets when a new image is dropped
-  or "Start new conversation" is clicked.
+- `versionHistory` is persisted atomically in the active-project recovery file
+  and in explicit `.axion` project files, together with the cursor, reference
+  image, active prompt and optional explanation for each generated version.
+  Starting a new project deliberately clears it; reopening AXION restores it.
 
 ### New vs. Edit — one shared flow, not two
 
@@ -375,16 +376,13 @@ require restructuring:
   `sourceImage`; a batch UI would loop over files/versions and call the existing
   IPC handler once per item (or a new `image:edit-batch` handler doing the same
   loop main-side) — no change needed to the core editing function itself.
-- **Multi-role image composition (Matrix + Reference mode)** — a full design proposal (not yet
-  implemented) for editing with several role-tagged images at once (a "Matrix" identity anchor
-  plus "Reference"/future role images contributing style, lighting, etc.) lives in
-  [`MATRIX_REFERENCE_MODE_DESIGN.md`](./MATRIX_REFERENCE_MODE_DESIGN.md). It would extend
-  `imageEditor.editImage()`'s single-image `messageParts` array to several inline-data
-  parts, and the `#original-gallery`/`.image-gallery` UI seam described above.
-- **Prompt templates** — `src/prompts/promptTemplates.js` already persists to
-  `userData/templates.json` using the exact same read/write pattern as
-  `historyStore.js`. A template manager UI (create/edit/delete) would add
-  `addTemplate`/`deleteTemplate` functions mirroring `historyStore`'s API.
+- **Multi-role image composition (Matrix + Reference mode)** — implemented end
+  to end. The Matrix owns identity/content while Reference contributes governed
+  visual attributes; `matrixPromptBuilder.js` defines the deterministic role
+  protocol and `imageEditor.js` sends the labeled inline-data parts.
+- **Prompt templates** — implemented with an integrated create/edit/delete UI.
+  `src/prompts/promptTemplates.js` validates personal entries, preserves the
+  immutable built-ins and replaces `userData/templates.json` atomically.
 - **Favorites** — already implemented, not just prepared: `historyStore.js`
   entries carry a `favorite` flag and `toggleFavorite()`, wired to the star icon
   in the history panel.
