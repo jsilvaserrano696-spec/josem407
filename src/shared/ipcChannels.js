@@ -26,8 +26,15 @@ module.exports = {
   PROJECT_LOAD: "project:load",
   PROJECT_SAVE: "project:save",
   PROJECT_CLEAR: "project:clear",
+  PROJECT_OPEN_FILE: "project:open-file",
+  PROJECT_SAVE_FILE: "project:save-file",
+  PROJECT_SAVE_ACTIVE: "project:save-active",
+  PROJECT_DETACH_FILE: "project:detach-file",
 
   TEMPLATES_LIST: "templates:list",
+  TEMPLATES_SAVE: "templates:save",
+  TEMPLATES_UPDATE: "templates:update",
+  TEMPLATES_DELETE: "templates:delete",
 
   CONFIG_GET: "config:get",
   CONFIG_SET_API_KEY: "config:set-api-key",
@@ -37,13 +44,20 @@ module.exports = {
 
   VOICE_TRANSCRIBE: "voice:transcribe",
 
-  // TEMP DEBUG — remove alongside src/debug/editDebugLogger.js.
+  // Guarded Developer Mode diagnostics.
   DEBUG_LOG: "debug:log",
 
   // Main -> renderer push events (sent via webContents.send, not invoke/handle).
   MENU_OPEN_SETTINGS: "menu:open-settings",
+  MENU_OPEN_PROJECT_DETAILS: "menu:open-project-details",
+  MENU_OPEN_PROJECT_FILE: "menu:open-project-file",
+  MENU_SAVE_PROJECT_FILE: "menu:save-project-file",
+  MENU_SAVE_PROJECT: "menu:save-project",
   MENU_OPEN_IMAGE: "menu:open-image",
   MENU_NEW_PROJECT: "menu:new-project",
   MENU_UNDO: "menu:undo",
   MENU_REDO: "menu:redo",
+  MENU_OPEN_PROTECTED_SELECTION: "menu:open-protected-selection",
+  MENU_SET_MODEL_TIER: "menu:set-model-tier",
+  PROJECT_OPEN_EXTERNAL: "project:open-external",
 };

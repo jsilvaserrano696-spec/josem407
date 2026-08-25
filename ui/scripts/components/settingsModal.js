@@ -13,6 +13,17 @@ export function wireSettingsModal({
   toggleKeyVisibilityButtonEl,
   pasteApiKeyButtonEl,
   languageSelectEl,
+  defaultStyleSelectEl,
+  conversationDefaultToggleEl,
+  defaultModelTierSelectEl,
+  workProfileSelectEl,
+  applyWorkProfileButtonEl,
+  deleteWorkProfileButtonEl,
+  workProfileNameInputEl,
+  saveWorkProfileButtonEl,
+  onDefaultStyleChanged,
+  onConversationDefaultChanged,
+  onDefaultModelTierChanged,
   onStatusChange,
   onLanguageChanged,
 }) {
@@ -20,6 +31,23 @@ export function wireSettingsModal({
   // string = the last masked key shown. Tracked so refreshDynamicLabels() can re-translate the
   // status line on a live language change without an extra IPC round-trip.
   let lastMaskedKey;
+  let workProfiles = [];
+
+  function renderWorkProfiles(selectedId = "") {
+    if (!workProfileSelectEl) return;
+    workProfileSelectEl.replaceChildren();
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = t("settings.profiles.none");
+    workProfileSelectEl.appendChild(emptyOption);
+    for (const profile of workProfiles) {
+      const option = document.createElement("option");
+      option.value = profile.id;
+      option.textContent = profile.name;
+      workProfileSelectEl.appendChild(option);
+    }
+    workProfileSelectEl.value = workProfiles.some(({ id }) => id === selectedId) ? selectedId : "";
+  }
 
   function updateApiKeyStatus(maskedKey) {
     lastMaskedKey = maskedKey;
@@ -58,6 +86,13 @@ export function wireSettingsModal({
     if (languageSelectEl && config.settings?.language) {
       languageSelectEl.value = config.settings.language;
     }
+    if (defaultStyleSelectEl) defaultStyleSelectEl.value = config.settings?.defaultStyleId ?? "";
+    if (conversationDefaultToggleEl) {
+      conversationDefaultToggleEl.checked = config.settings?.conversationModeDefault !== false;
+    }
+    if (defaultModelTierSelectEl) defaultModelTierSelectEl.value = config.settings?.modelTier ?? "economy";
+    workProfiles = Array.isArray(config.settings?.workProfiles) ? config.settings.workProfiles : [];
+    renderWorkProfiles();
     overlayEl.classList.remove("hidden");
   }
 
@@ -102,6 +137,83 @@ export function wireSettingsModal({
     const locale = languageSelectEl.value;
     await window.axion.setSettings({ language: locale });
     await onLanguageChanged?.(locale);
+  });
+
+  defaultStyleSelectEl?.addEventListener("change", async () => {
+    const styleId = defaultStyleSelectEl.value || null;
+    await window.axion.setSettings({ defaultStyleId: styleId });
+    onDefaultStyleChanged?.(styleId);
+  });
+
+  conversationDefaultToggleEl?.addEventListener("change", async () => {
+    await window.axion.setSettings({ conversationModeDefault: conversationDefaultToggleEl.checked });
+    onConversationDefaultChanged?.(conversationDefaultToggleEl.checked);
+  });
+
+  defaultModelTierSelectEl?.addEventListener("change", async () => {
+    const tier = defaultModelTierSelectEl.value;
+    await window.axion.setSettings({ modelTier: tier });
+    onDefaultModelTierChanged?.(tier);
+  });
+
+  applyWorkProfileButtonEl?.addEventListener("click", async () => {
+    const profile = workProfiles.find(({ id }) => id === workProfileSelectEl.value);
+    if (!profile) return;
+    defaultStyleSelectEl.value = profile.defaultStyleId ?? "";
+    conversationDefaultToggleEl.checked = profile.conversationModeDefault;
+    defaultModelTierSelectEl.value = profile.modelTier;
+    await window.axion.setSettings({
+      defaultStyleId: profile.defaultStyleId,
+      conversationModeDefault: profile.conversationModeDefault,
+      modelTier: profile.modelTier,
+    });
+    onDefaultStyleChanged?.(profile.defaultStyleId);
+    onConversationDefaultChanged?.(profile.conversationModeDefault);
+    onDefaultModelTierChanged?.(profile.modelTier);
+    onStatusChange(t("settings.profiles.applied"), "success");
+  });
+
+  saveWorkProfileButtonEl?.addEventListener("click", async () => {
+    const name = workProfileNameInputEl.value.trim();
+    if (!name) {
+      workProfileNameInputEl.focus();
+      return;
+    }
+    const selectedId = workProfileSelectEl.value;
+    const existingIndex = workProfiles.findIndex(({ id }) => id === selectedId);
+    if (existingIndex === -1 && workProfiles.length >= 20) {
+      onStatusChange(t("settings.profiles.limit"), "error");
+      return;
+    }
+    const profile = {
+      id: existingIndex >= 0 ? selectedId : `profile-${crypto.randomUUID()}`,
+      name,
+      defaultStyleId: defaultStyleSelectEl.value || null,
+      conversationModeDefault: conversationDefaultToggleEl.checked,
+      modelTier: defaultModelTierSelectEl.value,
+    };
+    if (existingIndex >= 0) workProfiles[existingIndex] = profile;
+    else workProfiles.push(profile);
+    const settings = await window.axion.setSettings({ workProfiles });
+    workProfiles = settings.workProfiles;
+    renderWorkProfiles(profile.id);
+    workProfileNameInputEl.value = profile.name;
+    onStatusChange(t("settings.profiles.saved"), "success");
+  });
+
+  deleteWorkProfileButtonEl?.addEventListener("click", async () => {
+    const profile = workProfiles.find(({ id }) => id === workProfileSelectEl.value);
+    if (!profile || !window.confirm(t("settings.profiles.deleteConfirm", { name: profile.name }))) return;
+    const settings = await window.axion.setSettings({ workProfiles: workProfiles.filter(({ id }) => id !== profile.id) });
+    workProfiles = settings.workProfiles;
+    renderWorkProfiles();
+    workProfileNameInputEl.value = "";
+    onStatusChange(t("settings.profiles.deleted"), "success");
+  });
+
+  workProfileSelectEl?.addEventListener("change", () => {
+    const profile = workProfiles.find(({ id }) => id === workProfileSelectEl.value);
+    workProfileNameInputEl.value = profile?.name ?? "";
   });
 
   return { open, close, refreshDynamicLabels };

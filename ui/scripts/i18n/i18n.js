@@ -67,6 +67,7 @@ const ATTRIBUTE_BINDINGS = [
   ["data-i18n-title", (el, value) => el.setAttribute("title", value)],
   ["data-i18n-aria-label", (el, value) => el.setAttribute("aria-label", value)],
   ["data-i18n-alt", (el, value) => el.setAttribute("alt", value)],
+  ["data-i18n-tooltip", (el, value) => el.setAttribute("data-tooltip", value)],
 ];
 
 /**

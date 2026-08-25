@@ -8,7 +8,6 @@ const channels = require("../shared/ipcChannels");
 const fileService = require("../services/fileService");
 const imageImportService = require("../services/imageImport/imageImportService");
 const configStore = require("../services/configStore");
-const imageEditor = require("../gemini/imageEditor");
 const axionCore = require("../core/axionCore");
 const promptOptimizer = require("../gemini/promptOptimizer");
 const voiceTranscriber = require("../gemini/voiceTranscriber");
@@ -18,8 +17,9 @@ const historyStore = require("../history/historyStore");
 const clipboardImageService = require("../services/clipboardImageService");
 const { encodeImageForPath } = require("../services/imageExportService");
 const projectStore = require("../services/projectStore");
+const projectFileSession = require("./projectFileSession");
 const { buildAppMenu, loadMenuStrings } = require("./menu");
-// TEMP DEBUG — remove alongside src/debug/editDebugLogger.js.
+// Persistent Developer Mode diagnostics; disabled by default.
 const editDebugLogger = require("../debug/editDebugLogger");
 
 function windowFromEvent(event) {
@@ -45,32 +45,38 @@ function registerIpcHandlers() {
   // `prompt` is the Gemini-optimized instruction actually sent to the model; `displayPrompt` is
   // the user's own (Spanish) text, used only for the persisted History panel entry — see
   // DESIGN_PHILOSOPHY.md, the sidebar must never show the internal optimized prompt.
-  ipcMain.handle(channels.IMAGE_EDIT, async (_event, { prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId }) => {
-    editDebugLogger.log("IMAGE_EDIT IPC handler received request", { promptLength: prompt?.length }); // TEMP DEBUG
-    const result = await axionCore.runEditPipeline({ prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId });
+  ipcMain.handle(channels.IMAGE_EDIT, async (_event, { prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId, explanationLanguage, modelTier }) => {
+    editDebugLogger.log("IMAGE_EDIT IPC handler received request", { promptLength: prompt?.length });
+    const result = await axionCore.runEditPipeline({ prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId, explanationLanguage, modelTier });
 
     const entry = historyStore.addEntry({ prompt: displayPrompt, styleId: styleId ?? null });
-    editDebugLogger.log("IMAGE_EDIT IPC handler returning result to renderer", { mimeType: result.mimeType, bytes: result.data.length }); // TEMP DEBUG
+    editDebugLogger.log("IMAGE_EDIT IPC handler returning result to renderer", { mimeType: result.mimeType, bytes: result.data.length });
 
     return {
       base64: result.data.toString("base64"),
       mimeType: result.mimeType,
+      explanation: result.explanation,
+      modelId: result.modelId,
+      modelTier: result.modelTier,
       historyEntry: entry,
     };
   });
 
   // Same displayPrompt/prompt split as IMAGE_EDIT above — the History entry gets the user's own
   // text, never the internal optimized one.
-  ipcMain.handle(channels.IMAGE_GENERATE, async (_event, { prompt, displayPrompt, styleId }) => {
-    editDebugLogger.log("IMAGE_GENERATE IPC handler received request", { promptLength: prompt?.length }); // TEMP DEBUG
-    const result = await axionCore.runGeneratePipeline({ prompt, displayPrompt, styleId });
+  ipcMain.handle(channels.IMAGE_GENERATE, async (_event, { prompt, displayPrompt, styleId, explanationLanguage, modelTier }) => {
+    editDebugLogger.log("IMAGE_GENERATE IPC handler received request", { promptLength: prompt?.length });
+    const result = await axionCore.runGeneratePipeline({ prompt, displayPrompt, styleId, explanationLanguage, modelTier });
 
     const entry = historyStore.addEntry({ prompt: displayPrompt, styleId: styleId ?? null });
-    editDebugLogger.log("IMAGE_GENERATE IPC handler returning result to renderer", { mimeType: result.mimeType, bytes: result.data.length }); // TEMP DEBUG
+    editDebugLogger.log("IMAGE_GENERATE IPC handler returning result to renderer", { mimeType: result.mimeType, bytes: result.data.length });
 
     return {
       base64: result.data.toString("base64"),
       mimeType: result.mimeType,
+      explanation: result.explanation,
+      modelId: result.modelId,
+      modelTier: result.modelTier,
       historyEntry: entry,
     };
   });
@@ -149,9 +155,45 @@ function registerIpcHandlers() {
   ipcMain.handle(channels.PROJECT_LOAD, async () => projectStore.loadProject());
   ipcMain.handle(channels.PROJECT_SAVE, async (_event, project) => projectStore.saveProject(project));
   ipcMain.handle(channels.PROJECT_CLEAR, async () => projectStore.clearProject());
+  ipcMain.handle(channels.PROJECT_OPEN_FILE, async (event) => {
+    const filePath = await fileService.showOpenProjectDialog(windowFromEvent(event));
+    if (!filePath) return null;
+    const project = projectStore.loadProjectFile(filePath);
+    if (!project) throw new TypeError("El archivo no contiene un proyecto AXION válido.");
+    projectFileSession.setProjectPath(event.sender, filePath);
+    return { project, filePath };
+  });
+  ipcMain.handle(channels.PROJECT_SAVE_FILE, async (event, { project, suggestedName }) => {
+    const filePath = await fileService.showSaveProjectDialog(windowFromEvent(event), suggestedName);
+    if (!filePath) return null;
+    projectStore.saveProjectFile(filePath, project);
+    projectFileSession.setProjectPath(event.sender, filePath);
+    return filePath;
+  });
+  ipcMain.handle(channels.PROJECT_SAVE_ACTIVE, async (event, { project, suggestedName }) => {
+    let filePath = projectFileSession.getProjectPath(event.sender);
+    if (!filePath) filePath = await fileService.showSaveProjectDialog(windowFromEvent(event), suggestedName);
+    if (!filePath) return null;
+    projectStore.saveProjectFile(filePath, project);
+    projectFileSession.setProjectPath(event.sender, filePath);
+    return filePath;
+  });
+  ipcMain.handle(channels.PROJECT_DETACH_FILE, async (event) => {
+    projectFileSession.clearProjectPath(event.sender);
+    return true;
+  });
 
   ipcMain.handle(channels.TEMPLATES_LIST, async () => {
     return promptTemplates.listTemplates();
+  });
+  ipcMain.handle(channels.TEMPLATES_SAVE, async (_event, template) => {
+    return promptTemplates.saveTemplate(template);
+  });
+  ipcMain.handle(channels.TEMPLATES_UPDATE, async (_event, id, template) => {
+    return promptTemplates.updateTemplate(id, template);
+  });
+  ipcMain.handle(channels.TEMPLATES_DELETE, async (_event, id) => {
+    return promptTemplates.deleteTemplate(id);
   });
 
   ipcMain.handle(channels.CONFIG_GET, async () => {
@@ -173,9 +215,9 @@ function registerIpcHandlers() {
     // Only a language change needs the native menu rebuilt — checked against the raw payload
     // (not a before/after diff of the merged settings), since setSettings() always merges and a
     // diff would misfire the first time any other setting happens to be saved.
-    if ("language" in partialSettings) {
+    if ("language" in partialSettings || "modelTier" in partialSettings) {
       const window = windowFromEvent(event);
-      window?.setMenu(buildAppMenu(window, settings.language, settings.developerMode));
+      window?.setMenu(buildAppMenu(window, settings.language, settings.developerMode, settings.modelTier));
     }
     return settings;
   });
@@ -188,9 +230,7 @@ function registerIpcHandlers() {
     return clipboard.readText();
   });
 
-  // TEMP DEBUG — forwards renderer-side debug logs (including window.onerror /
-  // unhandledrejection) into the same main-process log file/console, since the renderer has no
-  // filesystem access of its own. Remove alongside src/debug/editDebugLogger.js.
+  // Developer Mode forwards renderer errors into the same guarded main-process diagnostic log.
   ipcMain.on(channels.DEBUG_LOG, (_event, { label, data }) => {
     editDebugLogger.log(`[renderer] ${label}`, data);
   });

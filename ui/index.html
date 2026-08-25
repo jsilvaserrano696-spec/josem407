@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta
     http-equiv="Content-Security-Policy"
-    content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self';"
+    content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';"
   />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AXION</title>
@@ -19,16 +19,16 @@
         <span class="brand-icon">◆</span>
         <span class="brand-name">AXION</span>
       </div>
-      <button
-        id="settings-button"
-        class="icon-button"
-        title="Settings"
-        aria-label="Open settings"
-        data-i18n-title="header.settings.title"
-        data-i18n-aria-label="header.settings.ariaLabel"
-      >
-        ⚙️
-      </button>
+      <div class="header-actions">
+        <button
+          id="settings-button"
+          class="icon-button"
+          title="Settings"
+          aria-label="Open settings"
+          data-i18n-title="header.settings.title"
+          data-i18n-aria-label="header.settings.ariaLabel"
+        >⚙️</button>
+      </div>
     </header>
 
     <main class="app-main">
@@ -50,12 +50,13 @@
                 </button>
                 <button
                   id="add-image-button"
-                  class="matrix-change-button"
+                  class="matrix-change-button has-tooltip"
                   title="Change Matrix image"
                   aria-label="Change Matrix image"
                   data-i18n="panel.changeMatrix"
                   data-i18n-title="panel.addImage.title"
                   data-i18n-aria-label="panel.addImage.ariaLabel"
+                  data-i18n-tooltip="help.matrix.body"
                 >
                   🧬 Change Matrix
                 </button>
@@ -74,6 +75,7 @@
                 data-i18n-alt="image.original.alt"
               />
             </div>
+            <p id="edit-explanation" class="edit-explanation hidden"></p>
             <!--
               Extension point for a future multi-image gallery (thumbnails of recently
               imported images, click to switch the active original). Intentionally empty and
@@ -135,9 +137,9 @@
             <label class="toggle">
               <input type="checkbox" id="conversation-mode-toggle" checked />
               <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              <span class="toggle-label" data-i18n="conversationMode.label">Conversation Mode</span>
+              <span class="toggle-label has-tooltip" data-i18n="conversationMode.label" data-i18n-tooltip="help.conversation.body">Conversation Mode</span>
             </label>
-            <button id="new-conversation-button" class="text-button" data-i18n="conversationMode.newButton">
+            <button id="new-conversation-button" class="text-button has-tooltip" data-i18n="conversationMode.newButton" data-i18n-tooltip="help.newConversation.body">
               Start new conversation
             </button>
           </div>
@@ -170,11 +172,19 @@
           </div>
 
           <div class="action-row">
+            <label class="model-tier-control" for="model-tier-select">
+              <span data-i18n="modelTier.label">Quality</span>
+              <select id="model-tier-select" class="text-input">
+                <option value="economy" data-i18n="modelTier.economy">Economy · 1K</option>
+                <option value="balanced" data-i18n="modelTier.balanced">Balanced · 4K</option>
+                <option value="pro" data-i18n="modelTier.pro">Pro · 4K</option>
+              </select>
+            </label>
             <button id="edit-image-button" class="primary-button" data-i18n="button.editImage">Edit Image</button>
             <button id="copy-image-button" class="secondary-button" disabled data-i18n="button.copyImage">
               Copy Image
             </button>
-            <button id="use-as-original-button" class="secondary-button" disabled data-i18n="button.useAsOriginal">
+            <button id="use-as-original-button" class="secondary-button has-tooltip" disabled data-i18n="button.useAsOriginal" data-i18n-tooltip="help.useAsOriginal.body">
               Use as Original
             </button>
             <button id="save-image-button" class="secondary-button" disabled data-i18n="button.saveImage">
@@ -192,14 +202,17 @@
 
       <aside class="sidebar">
         <section class="sidebar-section">
-          <h2 class="sidebar-title" data-i18n="sidebar.templates">Templates</h2>
+          <div class="sidebar-title-row">
+            <h2 class="sidebar-title" data-i18n="sidebar.templates">Templates</h2>
+            <button id="save-template-button" class="text-button has-tooltip" data-i18n="templates.save" data-i18n-tooltip="templates.saveHelp">Save</button>
+          </div>
           <ul id="templates-list" class="template-list"></ul>
         </section>
 
         <section class="sidebar-section sidebar-section-grow">
           <div class="sidebar-title-row">
             <h2 class="sidebar-title" data-i18n="sidebar.history">History</h2>
-            <button id="clear-history-button" class="text-button" data-i18n="history.clear">Clear</button>
+            <button id="clear-history-button" class="text-button has-tooltip" data-i18n="history.clear" data-i18n-tooltip="help.clearHistory.body">Clear</button>
           </div>
           <ul id="history-list" class="history-list"></ul>
         </section>
@@ -215,6 +228,7 @@
           <div class="image-preview-switcher" role="group" aria-label="Choose image" data-i18n-aria-label="preview.chooseImage">
             <button id="preview-original-button" class="secondary-button" data-i18n="panel.original">Original</button>
             <button id="preview-edited-button" class="secondary-button" data-i18n="panel.edited">Edited</button>
+            <button id="preview-compare-button" class="secondary-button has-tooltip" data-i18n="preview.compare" data-i18n-tooltip="help.compare.body">Compare</button>
           </div>
           <button
             id="close-image-preview-button"
@@ -235,7 +249,28 @@
         >
           ←
         </button>
-        <img id="image-preview-full" alt="Enlarged image" data-i18n-alt="preview.image.alt" />
+        <div id="image-preview-canvas" class="image-preview-canvas">
+          <img id="image-preview-full" alt="Enlarged image" data-i18n-alt="preview.image.alt" />
+          <div id="image-preview-compare-clip" class="image-preview-compare-clip hidden">
+            <img id="image-preview-compare" alt="Edited comparison" data-i18n-alt="preview.compare.alt" />
+          </div>
+          <div id="preview-compare-scale" class="image-compare-scale hidden" aria-live="polite">
+            <span><span data-i18n="panel.edited">Edited</span> <strong id="preview-edited-percent">50%</strong></span>
+            <span><span data-i18n="panel.original">Original</span> <strong id="preview-original-percent">50%</strong></span>
+          </div>
+          <div id="preview-compare-divider" class="image-compare-divider hidden" aria-hidden="true"></div>
+          <input
+            id="preview-compare-slider"
+            class="image-compare-slider hidden"
+            type="range"
+            min="0"
+            max="100"
+            value="50"
+            aria-label="Before and after comparison"
+            data-i18n-aria-label="preview.compare.ariaLabel"
+          />
+          <button id="preview-zoom-reset" class="image-preview-zoom" type="button" aria-label="Restablecer zoom" data-i18n-aria-label="preview.zoom.reset">100%</button>
+        </div>
         <button
           id="preview-next-button"
           class="icon-button image-preview-nav image-preview-nav-next"
@@ -245,7 +280,38 @@
           →
         </button>
       </div>
-      <p class="image-preview-hint" data-i18n="preview.hint">Use ← and → to compare · Esc to close</p>
+      <p class="image-preview-hint" data-i18n="preview.hint">Wheel to zoom · Drag the image to move it · Esc to close</p>
+    </div>
+  </div>
+
+  <div id="protected-selection-modal" class="modal-overlay protected-selection-overlay hidden">
+    <div class="protected-selection-modal" role="dialog" aria-modal="true" aria-labelledby="protected-selection-title">
+      <div class="modal-header protected-selection-header">
+        <h2 id="protected-selection-title" data-i18n="protected.title">Protected edit</h2>
+        <div class="protected-selection-tools">
+          <button id="protected-magic-button" class="secondary-button active" data-i18n="protected.magic">🪄 Wand</button>
+          <button id="protected-brush-button" class="secondary-button" data-i18n="protected.brush">＋ Add area</button>
+          <button id="protected-eraser-button" class="secondary-button" data-i18n="protected.eraser">－ Remove area</button>
+          <button id="protected-hand-button" class="secondary-button" data-i18n="protected.hand">✋ Hand</button>
+          <label><span data-i18n="protected.tolerance">Tolerance</span><input id="protected-tolerance" type="range" min="0" max="100" value="28" /><output id="protected-tolerance-value">28</output></label>
+          <label><span data-i18n="protected.brushSize">Size</span><input id="protected-brush-size" type="range" min="1" max="200" value="20" /><output id="protected-brush-size-value">20 px</output></label>
+          <button id="protected-clear-button" class="secondary-button" data-i18n="protected.clear">Clear selection</button>
+          <button id="close-protected-selection-button" class="icon-button" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="protected-selection-stage">
+        <canvas id="protected-base-canvas"></canvas>
+        <canvas id="protected-mask-canvas" data-tool="magic"></canvas>
+        <div id="protected-brush-cursor" class="protected-brush-cursor hidden" aria-hidden="true"></div>
+        <button id="protected-zoom-reset" class="image-preview-zoom" type="button" data-i18n-aria-label="preview.zoom.reset">100%</button>
+      </div>
+      <div class="protected-selection-footer">
+        <p id="protected-selection-status" data-i18n="protected.hint">The red area is the only part Gemini may keep in the final result.</p>
+        <div>
+          <button id="protected-cancel-button" class="secondary-button" data-i18n="protected.cancel">Cancel</button>
+          <button id="protected-confirm-button" class="primary-button" data-i18n="protected.confirm">Use selection</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -308,6 +374,91 @@
           <option value="es">Español</option>
         </select>
 
+        <div class="settings-divider"></div>
+
+        <label class="field-label" for="default-style-select" data-i18n="settings.defaultStyle.label">Default style</label>
+        <select id="default-style-select" class="text-input">
+          <option value="" data-i18n="settings.defaultStyle.none">No default style</option>
+          <option value="photorealistic" data-i18n="style.photorealistic">Photorealistic</option>
+          <option value="oil-painting" data-i18n="style.oil-painting">Oil Painting</option>
+          <option value="watercolor" data-i18n="style.watercolor">Watercolor</option>
+          <option value="anime" data-i18n="style.anime">Anime</option>
+          <option value="cinematic" data-i18n="style.cinematic">Cinematic</option>
+          <option value="fantasy" data-i18n="style.fantasy">Fantasy</option>
+          <option value="medieval" data-i18n="style.medieval">Medieval</option>
+          <option value="sci-fi" data-i18n="style.sci-fi">Sci-Fi</option>
+          <option value="vintage" data-i18n="style.vintage">Vintage</option>
+          <option value="metal" data-i18n="style.metal">Metal</option>
+          <option value="dark" data-i18n="style.dark">Dark</option>
+          <option value="comic" data-i18n="style.comic">Comic</option>
+        </select>
+
+        <label class="settings-checkbox-row" for="conversation-default-toggle">
+          <input id="conversation-default-toggle" type="checkbox" />
+          <span data-i18n="settings.conversationDefault.label">Start new projects in Conversation Mode</span>
+        </label>
+
+        <label class="field-label" for="default-model-tier-select" data-i18n="settings.defaultModel.label">Default quality</label>
+        <select id="default-model-tier-select" class="text-input">
+          <option value="economy" data-i18n="modelTier.economy">Economy · 1K</option>
+          <option value="balanced" data-i18n="modelTier.balanced">Balanced · 4K</option>
+          <option value="pro" data-i18n="modelTier.pro">Pro · 4K</option>
+        </select>
+
+        <div class="settings-divider"></div>
+
+        <label class="field-label" for="work-profile-select" data-i18n="settings.profiles.label">Work profiles</label>
+        <div class="settings-profile-row">
+          <select id="work-profile-select" class="text-input">
+            <option value="" data-i18n="settings.profiles.none">Select a profile</option>
+          </select>
+          <button id="apply-work-profile-button" class="secondary-button" data-i18n="settings.profiles.apply">Apply</button>
+          <button id="delete-work-profile-button" class="text-button danger-text" data-i18n="settings.profiles.delete">Delete</button>
+        </div>
+        <div class="settings-profile-row">
+          <input id="work-profile-name-input" class="text-input" maxlength="60" data-i18n-placeholder="settings.profiles.namePlaceholder" placeholder="Profile name" />
+          <button id="save-work-profile-button" class="secondary-button" data-i18n="settings.profiles.save">Save current</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="template-modal" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="template-modal-title">
+      <div class="modal-header">
+        <h2 id="template-modal-title" data-i18n="templates.createTitle">Save personal template</h2>
+        <button id="close-template-modal-button" class="icon-button" aria-label="Close" data-i18n-aria-label="templates.close">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" for="template-name-input" data-i18n="templates.nameLabel">Name</label>
+        <input id="template-name-input" class="text-input" maxlength="80" />
+        <label class="field-label" for="template-prompt-input" data-i18n="templates.promptLabel">Instruction</label>
+        <textarea id="template-prompt-input" class="text-input template-prompt-input" maxlength="8000" rows="6"></textarea>
+        <div class="modal-action-row">
+          <button id="cancel-template-button" class="secondary-button" data-i18n="common.cancel">Cancel</button>
+          <button id="confirm-template-button" class="primary-button" data-i18n="templates.save">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="project-details-modal" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="project-details-title">
+      <div class="modal-header">
+        <h2 id="project-details-title" data-i18n="project.details.title">Project details</h2>
+        <button id="close-project-details-button" class="icon-button" aria-label="Close project details" data-i18n-aria-label="project.details.close.ariaLabel">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" for="project-name-input" data-i18n="project.name.label">Design</label>
+        <input id="project-name-input" class="text-input" maxlength="120" placeholder="e.g. Natural Oak" data-i18n-placeholder="project.name.placeholder" />
+        <label class="field-label" for="project-reference-input" data-i18n="project.reference.label">Reference</label>
+        <input id="project-reference-input" class="text-input" maxlength="80" placeholder="e.g. OAK-1842" data-i18n-placeholder="project.reference.placeholder" />
+        <p class="field-hint" data-i18n="project.details.hint">Optional. Used to identify the project and name exported files.</p>
+        <div class="modal-action-row">
+          <button id="cancel-project-details-button" class="secondary-button" data-i18n="project.details.cancel">Cancel</button>
+          <button id="save-project-details-button" class="primary-button" data-i18n="project.details.save">Save</button>
+        </div>
       </div>
     </div>
   </div>

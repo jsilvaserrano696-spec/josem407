@@ -46,7 +46,7 @@ function validateIntentForDiagnostics(intent, stage) {
         { stage, valid: false, errorCount: errors.length, errors: errors.map(sanitizeValidationError) }
       );
     }
-  } catch (error) {
+  } catch {
     editDebugLogger.log(
       `[AXION CORE] validateIntent() failed unexpectedly at ${stage} (diagnostics only, pipeline continues)`,
       { stage, warning: "validateIntent() threw; ignored, pipeline continues" }
@@ -73,7 +73,7 @@ function fallbackIntent({ operation, hasImage, text, styleId }) {
  * src/gemini/promptOptimizer.js, stays a separate, user-triggered IPC call today — unchanged by
  * this function). Returns exactly what imageEditor.editImage() returns.
  */
-async function runEditPipeline({ prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId } = {}) {
+async function runEditPipeline({ prompt, currentImage, originalImage, referenceImage, displayPrompt, styleId, explanationLanguage, modelTier } = {}) {
   const requestText = displayPrompt ?? prompt;
 
   const intent = safeStage(
@@ -85,7 +85,7 @@ async function runEditPipeline({ prompt, currentImage, originalImage, referenceI
   const directedIntent = safeStage("DIRECTOR", () => decideDirection({ intent }), intent);
   validateIntentForDiagnostics(directedIntent, "DIRECTOR");
 
-  const result = await imageEditor.editImage({ prompt, currentImage, originalImage, referenceImage });
+  const result = await imageEditor.editImage({ prompt, currentImage, originalImage, referenceImage, explanationLanguage, modelTier });
 
   safeStage(
     "INSPECTOR",
@@ -97,7 +97,7 @@ async function runEditPipeline({ prompt, currentImage, originalImage, referenceI
 }
 
 /** Same pipeline for from-scratch generation (no source image) — mirrors imageEditor.generateImage(). */
-async function runGeneratePipeline({ prompt, displayPrompt, styleId } = {}) {
+async function runGeneratePipeline({ prompt, displayPrompt, styleId, explanationLanguage, modelTier } = {}) {
   const requestText = displayPrompt ?? prompt;
 
   const intent = safeStage(
@@ -109,7 +109,7 @@ async function runGeneratePipeline({ prompt, displayPrompt, styleId } = {}) {
   const directedIntent = safeStage("DIRECTOR", () => decideDirection({ intent }), intent);
   validateIntentForDiagnostics(directedIntent, "DIRECTOR");
 
-  const result = await imageEditor.generateImage({ prompt });
+  const result = await imageEditor.generateImage({ prompt, explanationLanguage, modelTier });
 
   safeStage(
     "INSPECTOR",

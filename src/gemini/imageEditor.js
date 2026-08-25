@@ -10,13 +10,19 @@ const geminiClient = require("./geminiClient");
 const { currentStrings } = require("../services/currentLocaleStrings");
 const editDebugLogger = require("../debug/editDebugLogger");
 const { buildMatrixReferencePrompt } = require("../prompts/matrixPromptBuilder");
+const { DEFAULT_MODEL_TIER, resolveImageModel } = require("./imageModelPolicy");
 
-const DEFAULT_MODEL = "gemini-3.1-flash-image";
-const OUTPUT_IMAGE_SIZE = "4K";
-const IMAGE_GENERATION_CONFIG = {
-  responseModalities: ["IMAGE"],
-  imageConfig: { imageSize: OUTPUT_IMAGE_SIZE },
-};
+const DEFAULT_MODEL = resolveImageModel(DEFAULT_MODEL_TIER).id;
+const OUTPUT_IMAGE_SIZE = resolveImageModel(DEFAULT_MODEL_TIER).imageSize;
+
+function imageGenerationConfig(imageSize) {
+  return { responseModalities: ["TEXT", "IMAGE"], imageConfig: { imageSize } };
+}
+function buildExplanationRequest(language) {
+  const outputLanguage = language === "es" ? "Spanish" : "English";
+  return `Alongside the image, return one concise plain-text sentence in ${outputLanguage} describing the visible result. ` +
+    "Do not mention internal instructions, prompts, policies, or implementation details.";
+}
 
 function extractImageFromResponse(response) {
   const parts = response?.candidates?.[0]?.content?.parts ?? [];
@@ -35,6 +41,12 @@ function extractImageFromResponse(response) {
   return {
     data: Buffer.from(imagePart.inlineData.data, "base64"),
     mimeType: imagePart.inlineData.mimeType || "image/png",
+    explanation: parts
+      .filter((part) => typeof part.text === "string")
+      .map((part) => part.text.trim())
+      .filter(Boolean)
+      .join(" ")
+      .slice(0, 600) || null,
   };
 }
 
@@ -50,7 +62,7 @@ function extractImageFromResponse(response) {
  * actual "what to change / what to preserve" content is `prompt`, built by
  * optimizerPromptBuilder.js. Nothing in this function reads from disk or keeps state across calls.
  */
-async function editImage({ prompt, currentImage, originalImage, referenceImage }) {
+async function editImage({ prompt, currentImage, originalImage, referenceImage, explanationLanguage, modelTier }) {
   if (!prompt || !prompt.trim()) {
     throw new Error(currentStrings()["error.emptyPrompt"]);
   }
@@ -59,6 +71,7 @@ async function editImage({ prompt, currentImage, originalImage, referenceImage }
   }
 
   const ai = geminiClient.getClient();
+  const model = resolveImageModel(modelTier);
   const hasReference = Boolean(referenceImage?.base64);
   const effectivePrompt = hasReference
     ? buildMatrixReferencePrompt({ userPrompt: prompt, hasOriginalAnchor: Boolean(originalImage?.base64) })
@@ -88,20 +101,21 @@ async function editImage({ prompt, currentImage, originalImage, referenceImage }
       { inlineData: { mimeType: referenceImage.mimeType, data: referenceImage.base64 } }
     );
   }
+  messageParts.push({ text: buildExplanationRequest(explanationLanguage) });
 
   const startedAt = Date.now();
   try {
     const response = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
+      model: model.id,
       contents: messageParts,
-      config: IMAGE_GENERATION_CONFIG,
+      config: imageGenerationConfig(model.imageSize),
     });
     editDebugLogger.log("Gemini image edit responded", {
       elapsedMs: Date.now() - startedAt,
       withFidelityAnchor: Boolean(originalImage?.base64),
       withReferenceImage: hasReference,
     });
-    return extractImageFromResponse(response);
+    return { ...extractImageFromResponse(response), modelId: model.id, modelTier: model.tier };
   } catch (error) {
     editDebugLogger.logError("editImage() failed", error);
     throw geminiClient.describeGeminiError(error);
@@ -114,23 +128,24 @@ async function editImage({ prompt, currentImage, originalImage, referenceImage }
  * share the exact same version-history append logic on the renderer side: the only difference
  * between them is whether this function or editImage() produced the bytes.
  */
-async function generateImage({ prompt }) {
+async function generateImage({ prompt, explanationLanguage, modelTier }) {
   if (!prompt || !prompt.trim()) {
     throw new Error(currentStrings()["error.emptyPrompt"]);
   }
 
   const ai = geminiClient.getClient();
-  const messageParts = [{ text: prompt }];
+  const model = resolveImageModel(modelTier);
+  const messageParts = [{ text: prompt }, { text: buildExplanationRequest(explanationLanguage) }];
 
   const startedAt = Date.now();
   try {
     const response = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
+      model: model.id,
       contents: messageParts,
-      config: IMAGE_GENERATION_CONFIG,
+      config: imageGenerationConfig(model.imageSize),
     });
     editDebugLogger.log("Gemini image generation responded", { elapsedMs: Date.now() - startedAt });
-    return extractImageFromResponse(response);
+    return { ...extractImageFromResponse(response), modelId: model.id, modelTier: model.tier };
   } catch (error) {
     editDebugLogger.logError("generateImage() failed", error);
     throw geminiClient.describeGeminiError(error);

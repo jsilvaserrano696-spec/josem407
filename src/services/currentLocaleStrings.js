@@ -23,7 +23,7 @@ const LAST_RESORT_STRINGS = {
 };
 
 function currentStrings() {
-  let locale = "es";
+  let locale;
   try {
     locale = configStore.getSettings()?.language || "es";
   } catch {

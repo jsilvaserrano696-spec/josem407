@@ -7,7 +7,7 @@ const { Menu, app, dialog } = require("electron");
 const channels = require("../shared/ipcChannels");
 const { loadLocaleStrings: loadMenuStrings } = require("../shared/localeStrings");
 
-function buildAppMenu(browserWindow, locale = "es", developerMode = false) {
+function buildAppMenu(browserWindow, locale = "es", developerMode = false, modelTier = "economy") {
   const isMac = process.platform === "darwin";
   const strings = loadMenuStrings(locale);
 
@@ -24,6 +24,26 @@ function buildAppMenu(browserWindow, locale = "es", developerMode = false) {
           label: strings["menu.openImage"],
           accelerator: "CmdOrCtrl+O",
           click: () => browserWindow.webContents.send(channels.MENU_OPEN_IMAGE),
+        },
+        {
+          label: strings["menu.openProject"],
+          accelerator: "CmdOrCtrl+Shift+O",
+          click: () => browserWindow.webContents.send(channels.MENU_OPEN_PROJECT_FILE),
+        },
+        {
+          label: strings["menu.saveProject"],
+          accelerator: "CmdOrCtrl+S",
+          registerAccelerator: false,
+          click: () => browserWindow.webContents.send(channels.MENU_SAVE_PROJECT),
+        },
+        {
+          label: strings["menu.saveProjectAs"],
+          accelerator: "CmdOrCtrl+Shift+S",
+          click: () => browserWindow.webContents.send(channels.MENU_SAVE_PROJECT_FILE),
+        },
+        {
+          label: strings["menu.projectDetails"],
+          click: () => browserWindow.webContents.send(channels.MENU_OPEN_PROJECT_DETAILS),
         },
         { type: "separator" },
         {
@@ -59,6 +79,25 @@ function buildAppMenu(browserWindow, locale = "es", developerMode = false) {
           accelerator: "CmdOrCtrl+Shift+Z",
           registerAccelerator: false,
           click: () => browserWindow.webContents.send(channels.MENU_REDO),
+        },
+        { type: "separator" },
+        {
+          label: strings["menu.protectedSelection"],
+          click: () => browserWindow.webContents.send(channels.MENU_OPEN_PROTECTED_SELECTION),
+        },
+        { type: "separator" },
+        {
+          label: strings["menu.generationQuality"],
+          submenu: [
+            ["economy", "menu.qualityEconomy"],
+            ["balanced", "menu.qualityBalanced"],
+            ["pro", "menu.qualityPro"],
+          ].map(([tier, label]) => ({
+            label: strings[label],
+            type: "radio",
+            checked: modelTier === tier,
+            click: () => browserWindow.webContents.send(channels.MENU_SET_MODEL_TIER, tier),
+          })),
         },
         { type: "separator" },
         { role: "cut", label: strings["menu.cut"] },

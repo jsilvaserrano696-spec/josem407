@@ -29,6 +29,8 @@ export const appState = createStore({
   // Each entry: { id, versionNumber, prompt, styleId, timestamp, image: { base64, mimeType } }
   versionHistory: [],
   versionCursor: -1, // -1 = no image loaded yet
+  projectName: "",
+  projectReference: "",
   selectedStyleId: null,
   referenceImage: null,
   conversationMode: true,

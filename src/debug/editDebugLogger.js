@@ -1,15 +1,20 @@
-// ============================================================================
-// TEMPORARY DEBUG MODULE — traces the Edit Image flow end-to-end while we confirm it's
-// stable. DELETE this whole file, and every block marked "TEMP DEBUG" that references it
-// (src/main/main.js, src/main/ipcHandlers.js, src/shared/ipcChannels.js, src/preload/preload.js,
-// src/gemini/imageEditor.js, ui/scripts/app.js), once several consecutive edits complete
-// cleanly with no errors in the log.
-// ============================================================================
+// Persistent diagnostics for AXION's edit flow. Calls are intentionally cheap no-ops during
+// normal use and only reach the console/file after the user enables hidden Developer Mode.
 const fs = require("node:fs");
 const path = require("node:path");
 const { app } = require("electron");
+const configStore = require("../services/configStore");
 
 let logFilePath = null;
+
+function isEnabled() {
+  try {
+    return configStore.getSettings().developerMode === true;
+  } catch {
+    // Diagnostics must never make normal execution fail during early startup or unit tests.
+    return false;
+  }
+}
 
 function getLogFilePath() {
   if (!logFilePath) {
@@ -27,6 +32,7 @@ function safeStringify(data) {
 }
 
 function log(label, data) {
+  if (!isEnabled()) return false;
   const line = `[${new Date().toISOString()}] [EDIT-DEBUG] ${label}${data !== undefined ? " " + safeStringify(data) : ""}`;
   console.log(line);
   try {
@@ -34,6 +40,7 @@ function log(label, data) {
   } catch (error) {
     console.error("[EDIT-DEBUG] failed to write log file:", error.message);
   }
+  return true;
 }
 
 function logError(label, error) {
@@ -60,7 +67,7 @@ function setupCrashHandlers() {
   process.on("exit", (code) => {
     log("Main process exiting", { code });
   });
-  log("Debug crash handlers installed", { logFile: getLogFilePath() });
+  if (isEnabled()) log("Debug crash handlers installed", { logFile: getLogFilePath() });
 }
 
-module.exports = { log, logError, setupCrashHandlers, getLogFilePath };
+module.exports = { isEnabled, log, logError, setupCrashHandlers, getLogFilePath };

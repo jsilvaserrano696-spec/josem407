@@ -37,6 +37,8 @@ export function createReferenceSlot({ containerEl, onSelect, onRemove, onError }
     const matrixLabel = document.createElement("div");
     matrixLabel.className = "role-slot role-slot-matrix";
     matrixLabel.title = t("reference.matrix.title");
+    matrixLabel.classList.add("has-tooltip");
+    matrixLabel.dataset.tooltip = t("help.matrix.body");
     matrixLabel.textContent = `🧬 ${t("reference.matrix.label")}`;
     containerEl.append(matrixLabel);
 
@@ -44,6 +46,8 @@ export function createReferenceSlot({ containerEl, onSelect, onRemove, onError }
       const addButton = document.createElement("button");
       addButton.type = "button";
       addButton.className = "role-slot role-slot-add";
+      addButton.classList.add("has-tooltip");
+      addButton.dataset.tooltip = t("help.reference.body");
       addButton.disabled = isBusy;
       addButton.title = t("reference.add.title");
       addButton.textContent = `🎨 + ${t("reference.label")}`;
@@ -67,6 +71,8 @@ export function createReferenceSlot({ containerEl, onSelect, onRemove, onError }
 
     const filledSlot = document.createElement("div");
     filledSlot.className = "role-slot role-slot-filled";
+    filledSlot.classList.add("has-tooltip");
+    filledSlot.dataset.tooltip = t("help.reference.body");
     filledSlot.title = t("reference.active.title");
     const thumbnail = document.createElement("img");
     thumbnail.className = "gallery-thumb active";

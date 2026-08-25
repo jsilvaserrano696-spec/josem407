@@ -16,6 +16,8 @@ function validProject(overrides = {}) {
       },
     ],
     versionCursor: 0,
+    projectName: "Roble Natural",
+    projectReference: "ROB-1842",
     selectedStyleId: null,
     conversationMode: true,
     activePrompt: "Dame una polla de plástico",
@@ -23,15 +25,33 @@ function validProject(overrides = {}) {
   };
 }
 
-function memoryFileSystem(initialContent = null) {
+function memoryFileSystem(initialContent = null, { failRename = false } = {}) {
   let content = initialContent;
+  let temporaryContent = null;
+  const operations = [];
   return {
-    existsSync: () => content !== null,
-    readFileSync: () => content,
+    existsSync: (filePath) => filePath.endsWith(".tmp") ? temporaryContent !== null : content !== null,
+    readFileSync: (filePath) => filePath.endsWith(".tmp") ? temporaryContent : content,
     mkdirSync: () => {},
-    writeFileSync: (_path, next) => { content = next; },
-    unlinkSync: () => { content = null; },
+    writeFileSync: (filePath, next) => {
+      operations.push(`write:${filePath}`);
+      if (filePath.endsWith(".tmp")) temporaryContent = next;
+      else content = next;
+    },
+    renameSync: (from, to) => {
+      operations.push(`rename:${from}->${to}`);
+      if (failRename) throw new Error("simulated rename failure");
+      content = temporaryContent;
+      temporaryContent = null;
+    },
+    unlinkSync: (filePath) => {
+      operations.push(`unlink:${filePath}`);
+      if (filePath.endsWith(".tmp")) temporaryContent = null;
+      else content = null;
+    },
     content: () => content,
+    temporaryContent: () => temporaryContent,
+    operations: () => [...operations],
   };
 }
 
@@ -41,6 +61,8 @@ test("normalizeProject accepts a valid project and strips unknown fields", () =>
   assert.equal(result.unknown, undefined);
   assert.equal(result.versionHistory[0].image.base64, "AAAA");
   assert.equal(result.activePrompt, "Dame una polla de plástico");
+  assert.equal(result.projectName, "Roble Natural");
+  assert.equal(result.projectReference, "ROB-1842");
 });
 
 test("normalizeProject rejects unsupported schemas and empty histories", () => {
@@ -91,9 +113,68 @@ test("store round-trip saves and restores the complete normalized project", () =
   assert.deepEqual(store.loadProject(), normalizeProject(validProject()));
 });
 
+test("save is atomic: it writes a sibling temporary file before replacing the live project", () => {
+  const fileSystem = memoryFileSystem();
+  const store = createProjectStore({ fileSystem, filePath: "C:/memory/current-project.json" });
+  store.saveProject(validProject());
+  assert.deepEqual(fileSystem.operations(), [
+    "write:C:/memory/current-project.json.tmp",
+    "rename:C:/memory/current-project.json.tmp->C:/memory/current-project.json",
+  ]);
+  assert.equal(fileSystem.temporaryContent(), null);
+});
+
+test("a failed atomic replacement preserves the previous project and cleans the temporary file", () => {
+  const original = JSON.stringify(validProject({ projectReference: "OLD" }));
+  const fileSystem = memoryFileSystem(original, { failRename: true });
+  const store = createProjectStore({ fileSystem, filePath: "C:/memory/current-project.json" });
+  assert.throws(() => store.saveProject(validProject({ projectReference: "NEW" })), /simulated rename failure/);
+  assert.equal(fileSystem.content(), original);
+  assert.equal(fileSystem.temporaryContent(), null);
+});
+
 test("project persistence keeps an optional reference image", () => {
   const referenceImage = { base64: "REFERENCE", mimeType: "image/jpeg" };
   assert.deepEqual(normalizeProject(validProject({ referenceImage })).referenceImage, referenceImage);
+});
+
+test("project persistence keeps a bounded explanation for each generated version", () => {
+  const normalized = normalizeProject(validProject({
+    versionHistory: [{ ...validProject().versionHistory[0], explanation: `  ${"cambio ".repeat(120)}  ` }],
+  }));
+
+  assert.equal(normalized.versionHistory[0].explanation.length, 600);
+  assert.match(normalized.versionHistory[0].explanation, /^cambio/);
+});
+
+test("project persistence keeps safe model audit metadata", () => {
+  const normalized = normalizeProject(validProject({
+    versionHistory: [{
+      ...validProject().versionHistory[0],
+      modelId: "gemini-3-pro-image",
+      modelTier: "pro",
+    }],
+  }));
+  assert.equal(normalized.versionHistory[0].modelId, "gemini-3-pro-image");
+  assert.equal(normalized.versionHistory[0].modelTier, "pro");
+
+  const invalid = normalizeProject(validProject({
+    versionHistory: [{ ...validProject().versionHistory[0], modelTier: "toString" }],
+  }));
+  assert.equal(invalid.versionHistory[0].modelTier, undefined);
+});
+
+test("project identity is optional, bounded, and safe for legacy projects", () => {
+  const legacy = validProject();
+  delete legacy.projectName;
+  delete legacy.projectReference;
+  assert.deepEqual(
+    { name: normalizeProject(legacy).projectName, reference: normalizeProject(legacy).projectReference },
+    { name: "", reference: "" }
+  );
+  const normalized = normalizeProject(validProject({ projectName: "N".repeat(200), projectReference: "R".repeat(120) }));
+  assert.equal(normalized.projectName.length, 120);
+  assert.equal(normalized.projectReference.length, 80);
 });
 
 test("legacy and malformed reference images safely normalize to null", () => {

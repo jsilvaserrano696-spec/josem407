@@ -83,7 +83,7 @@ test("1. editImage without originalImage -> success, no second reference image i
 
   const result = await editImage({ prompt: "x", currentImage: { base64: "AAA", mimeType: "image/png" } });
 
-  assert.deepEqual(capture.contents, [
+  assert.deepEqual(capture.contents.slice(0, -1), [
     { text: "x" },
     { text: "Reference image A — current state, build the requested change on top of this:" },
     { inlineData: { mimeType: "image/png", data: "AAA" } },
@@ -101,7 +101,7 @@ test("2. editImage with originalImage -> success, includes the second reference 
     originalImage: { base64: "BBB", mimeType: "image/png" },
   });
 
-  assert.equal(capture.contents.length, 5);
+  assert.equal(capture.contents.length, 6);
 });
 
 test("2a. editImage with referenceImage labels and sends it after the source", async (t) => {
@@ -116,7 +116,7 @@ test("2a. editImage with referenceImage labels and sends it after the source", a
     referenceImage,
   });
 
-  assert.equal(capture.contents.length, 5);
+  assert.equal(capture.contents.length, 6);
   assert.match(capture.contents[0].text, /Image 1 — SOURCE IMAGE \/ MATRIX/);
   assert.match(capture.contents[0].text, /Image 2 — REFERENCE IMAGE \/ REFERENCE/);
   assert.deepEqual(capture.contents[4], {
@@ -136,20 +136,35 @@ test("2b. editImage orders source, original anchor, then reference deterministic
     referenceImage: { base64: "REFERENCE", mimeType: "image/png" },
   });
 
-  assert.equal(capture.contents.length, 7);
+  assert.equal(capture.contents.length, 8);
   assert.equal(capture.contents[2].inlineData.data, "SOURCE");
   assert.equal(capture.contents[4].inlineData.data, "ORIGINAL");
   assert.equal(capture.contents[6].inlineData.data, "REFERENCE");
   assert.match(capture.contents[0].text, /Image 3 — REFERENCE IMAGE/);
 });
 
-test("3. generateImage -> contents is exactly [{ text: prompt }]", async (t) => {
+test("3. generateImage sends the prompt and requests a concise explanation", async (t) => {
   const capture = newCapture();
   patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
 
   await generateImage({ prompt: "un bosque encantado" });
 
-  assert.deepEqual(capture.contents, [{ text: "un bosque encantado" }]);
+  assert.equal(capture.contents[0].text, "un bosque encantado");
+  assert.match(capture.contents[1].text, /one concise plain-text sentence/);
+});
+
+test("3a. explanation language is closed to Spanish or English", async (t) => {
+  const spanishCapture = newCapture();
+  const fallbackCapture = newCapture();
+  const clients = [spanishCapture, fallbackCapture].map((capture) =>
+    fakeGeminiClient({ response: fakeImageResponse(), capture })
+  );
+  patch(t, geminiClient, "getClient", () => clients.shift());
+  await generateImage({ prompt: "x", explanationLanguage: "es" });
+  assert.match(spanishCapture.contents[1].text, /in Spanish/);
+
+  await generateImage({ prompt: "x", explanationLanguage: "unexpected" });
+  assert.match(fallbackCapture.contents[1].text, /in English/);
 });
 
 test("4. mimeType present in response is preserved", async (t) => {
@@ -190,19 +205,31 @@ test("7. exactly one call to the model per invocation", async (t) => {
   assert.equal(capture.calls, 1);
 });
 
-test("8. Nano Banana 2 is always requested with image-only 4K output", async (t) => {
+test("8. economy is requested by default with text-and-image 1K output", async (t) => {
   const capture = newCapture();
   patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
 
   await generateImage({ prompt: "x" });
 
   assert.equal(capture.model, DEFAULT_MODEL);
-  assert.equal(DEFAULT_MODEL, "gemini-3.1-flash-image");
-  assert.equal(OUTPUT_IMAGE_SIZE, "4K");
+  assert.equal(DEFAULT_MODEL, "gemini-3.1-flash-lite-image");
+  assert.equal(OUTPUT_IMAGE_SIZE, "1K");
   assert.deepEqual(capture.config, {
-    responseModalities: ["IMAGE"],
-    imageConfig: { imageSize: "4K" },
+    responseModalities: ["TEXT", "IMAGE"],
+    imageConfig: { imageSize: "1K" },
   });
+});
+
+test("8a. selecting Pro reaches the Pro model with 4K output", async (t) => {
+  const capture = newCapture();
+  patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response: fakeImageResponse(), capture }));
+
+  const result = await generateImage({ prompt: "x", modelTier: "pro" });
+
+  assert.equal(capture.model, "gemini-3-pro-image");
+  assert.equal(capture.config.imageConfig.imageSize, "4K");
+  assert.equal(result.modelTier, "pro");
+  assert.equal(result.modelId, "gemini-3-pro-image");
 });
 
 // --- Error cases ---------------------------------------------------------------------------
@@ -383,9 +410,21 @@ test("23. exact shape of a successful result", async (t) => {
 
   const result = await generateImage({ prompt: "x" });
 
-  assert.deepEqual(Object.keys(result).sort(), ["data", "mimeType"]);
+  assert.deepEqual(Object.keys(result).sort(), ["data", "explanation", "mimeType", "modelId", "modelTier"]);
   assert.ok(Buffer.isBuffer(result.data));
   assert.equal(typeof result.mimeType, "string");
+  assert.equal(result.explanation, null);
+});
+
+test("23a. response text becomes a trimmed, bounded explanation", async (t) => {
+  const response = fakeImageResponse();
+  response.candidates[0].content.parts.unshift({ text: `  ${"visible ".repeat(100)}  ` });
+  patch(t, geminiClient, "getClient", () => fakeGeminiClient({ response, capture: newCapture() }));
+
+  const result = await generateImage({ prompt: "x" });
+
+  assert.equal(result.explanation.length, 600);
+  assert.match(result.explanation, /^visible/);
 });
 
 test("documents (without changing) Buffer.from's tolerant behavior on invalid base64: never throws", async (t) => {

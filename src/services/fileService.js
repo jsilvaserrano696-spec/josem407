@@ -38,8 +38,28 @@ async function showSaveImageDialog(browserWindow, suggestedName = "edited-image.
   return result.filePath;
 }
 
+async function showOpenProjectDialog(browserWindow) {
+  const result = await dialog.showOpenDialog(browserWindow, {
+    title: "Open AXION project",
+    properties: ["openFile"],
+    filters: [{ name: "AXION Project", extensions: ["axion"] }],
+  });
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+}
+
+async function showSaveProjectDialog(browserWindow, suggestedName = "project.axion") {
+  const result = await dialog.showSaveDialog(browserWindow, {
+    title: "Save AXION project",
+    defaultPath: suggestedName,
+    filters: [{ name: "AXION Project", extensions: ["axion"] }],
+  });
+  return result.canceled || !result.filePath ? null : result.filePath;
+}
+
 module.exports = {
   writeImageFile,
   showOpenImageDialog,
   showSaveImageDialog,
+  showOpenProjectDialog,
+  showSaveProjectDialog,
 };

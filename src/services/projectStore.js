@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { app } = require("electron");
+const { MODEL_TIERS } = require("../gemini/imageModelPolicy");
 
 const PROJECT_FILE_NAME = "current-project.json";
 const SCHEMA_VERSION = 1;
@@ -25,7 +26,7 @@ function normalizeVersion(version, index) {
   if (version.prompt !== null && typeof version.prompt !== "string") return null;
   if (version.styleId !== null && typeof version.styleId !== "string") return null;
 
-  return {
+  const normalized = {
     id: typeof version.id === "string" && version.id ? version.id : `restored-${index}`,
     versionNumber: index,
     prompt: version.prompt,
@@ -33,6 +34,14 @@ function normalizeVersion(version, index) {
     timestamp: Number.isFinite(version.timestamp) ? version.timestamp : 0,
     image: { base64: image.base64, mimeType: image.mimeType },
   };
+  if (typeof version.explanation === "string" && version.explanation.trim()) {
+    normalized.explanation = version.explanation.trim().slice(0, 600);
+  }
+  if (typeof version.modelId === "string" && version.modelId.trim()) {
+    normalized.modelId = version.modelId.trim().slice(0, 120);
+  }
+  if (Object.hasOwn(MODEL_TIERS, version.modelTier)) normalized.modelTier = version.modelTier;
+  return normalized;
 }
 
 function normalizeOptionalImage(image) {
@@ -62,6 +71,8 @@ function normalizeProject(project) {
     schemaVersion: SCHEMA_VERSION,
     versionHistory,
     versionCursor: project.versionCursor,
+    projectName: typeof project.projectName === "string" ? project.projectName.slice(0, 120) : "",
+    projectReference: typeof project.projectReference === "string" ? project.projectReference.slice(0, 80) : "",
     selectedStyleId: typeof project.selectedStyleId === "string" ? project.selectedStyleId : null,
     referenceImage: normalizeOptionalImage(project.referenceImage),
     conversationMode: project.conversationMode !== false,
@@ -75,6 +86,8 @@ function normalizeProject(project) {
 }
 
 function createProjectStore({ fileSystem = fs, filePath }) {
+  const temporaryPath = `${filePath}.tmp`;
+
   function loadProject() {
     if (!fileSystem.existsSync(filePath)) return null;
     try {
@@ -89,12 +102,25 @@ function createProjectStore({ fileSystem = fs, filePath }) {
     const normalized = normalizeProject({ ...project, schemaVersion: SCHEMA_VERSION });
     if (!normalized) throw new TypeError("The active project is not valid.");
     fileSystem.mkdirSync(path.dirname(filePath), { recursive: true });
-    fileSystem.writeFileSync(filePath, JSON.stringify(normalized), "utf-8");
-    return true;
+    try {
+      // Write the complete next state beside the live file, then replace it in one filesystem
+      // operation. A crash can leave a disposable .tmp file, but never half a current project.
+      fileSystem.writeFileSync(temporaryPath, JSON.stringify(normalized), "utf-8");
+      fileSystem.renameSync(temporaryPath, filePath);
+      return true;
+    } catch (error) {
+      try {
+        if (fileSystem.existsSync(temporaryPath)) fileSystem.unlinkSync(temporaryPath);
+      } catch {
+        // Cleanup is best-effort; preserving the original write error is more useful.
+      }
+      throw error;
+    }
   }
 
   function clearProject() {
     if (fileSystem.existsSync(filePath)) fileSystem.unlinkSync(filePath);
+    if (fileSystem.existsSync(temporaryPath)) fileSystem.unlinkSync(temporaryPath);
     return true;
   }
 
@@ -105,6 +131,14 @@ function currentStore() {
   return createProjectStore({ filePath: path.join(app.getPath("userData"), PROJECT_FILE_NAME) });
 }
 
+function loadProjectFile(filePath) {
+  return createProjectStore({ filePath }).loadProject();
+}
+
+function saveProjectFile(filePath, project) {
+  return createProjectStore({ filePath }).saveProject(project);
+}
+
 module.exports = {
   SCHEMA_VERSION,
   MAX_VERSIONS,
@@ -113,4 +147,6 @@ module.exports = {
   loadProject: () => currentStore().loadProject(),
   saveProject: (project) => currentStore().saveProject(project),
   clearProject: () => currentStore().clearProject(),
+  loadProjectFile,
+  saveProjectFile,
 };

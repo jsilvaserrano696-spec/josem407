@@ -59,7 +59,7 @@ async function optimizePrompt({ userPrompt, styleId, priorEdits, currentImage })
   const style = styleId ? getStyleById(styleId) : null;
   const hasImage = Boolean(currentImage?.base64);
 
-  let detectedElements = null;
+  let detectedElements;
   try {
     const intent = analyze.analyzeRequest({ userPrompt, currentImage, styleId });
     detectedElements = optimizerIntentBridge.extractDetectedElements(intent);

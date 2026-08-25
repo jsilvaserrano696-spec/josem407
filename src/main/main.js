@@ -7,11 +7,43 @@ const { app, BrowserWindow, session, Menu } = require("electron");
 const { registerIpcHandlers } = require("./ipcHandlers");
 const { buildAppMenu, loadMenuStrings } = require("./menu");
 const configStore = require("../services/configStore");
-// TEMP DEBUG — remove alongside src/debug/editDebugLogger.js once the edit flow is confirmed
-// stable across several consecutive edits.
+const projectStore = require("../services/projectStore");
+const channels = require("../shared/ipcChannels");
+const projectFileSession = require("./projectFileSession");
+// Persistent Developer Mode diagnostics; calls are no-ops during normal use.
 const editDebugLogger = require("../debug/editDebugLogger");
 
 let mainWindow = null;
+let pendingProjectPath = process.argv.find((argument) => argument.toLowerCase().endsWith(".axion")) ?? null;
+
+function sendExternalProject(filePath) {
+  if (!mainWindow || !filePath) return;
+  const project = projectStore.loadProjectFile(filePath);
+  if (project) projectFileSession.setProjectPath(mainWindow.webContents, filePath);
+  mainWindow.webContents.send(channels.PROJECT_OPEN_EXTERNAL, project
+    ? { project, filePath }
+    : { error: "El archivo no contiene un proyecto AXION válido.", filePath });
+}
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (_event, commandLine) => {
+    const filePath = commandLine.find((argument) => argument.toLowerCase().endsWith(".axion"));
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      sendExternalProject(filePath);
+    }
+  });
+}
+
+app.on("open-file", (event, filePath) => {
+  event.preventDefault();
+  if (mainWindow) sendExternalProject(filePath);
+  else pendingProjectPath = filePath;
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -36,8 +68,22 @@ function createWindow() {
     },
   });
 
-  mainWindow.setMenu(buildAppMenu(mainWindow, configStore.getSettings().language, configStore.getSettings().developerMode));
+  const initialSettings = configStore.getSettings();
+  mainWindow.setMenu(buildAppMenu(mainWindow, initialSettings.language, initialSettings.developerMode, initialSettings.modelTier));
+
+  // AXION is a local application and never needs to navigate its renderer or open child
+  // windows. Deny both explicitly so an accidentally introduced link (or compromised
+  // renderer content) cannot turn the privileged application window into a web browser.
+  mainWindow.webContents.on("will-navigate", (event) => event.preventDefault());
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+
   mainWindow.loadFile(path.join(__dirname, "..", "..", "ui", "index.html"));
+  mainWindow.webContents.once("did-finish-load", () => {
+    if (pendingProjectPath) {
+      sendExternalProject(pendingProjectPath);
+      pendingProjectPath = null;
+    }
+  });
 
   // Hidden developer-mode toggle (see DESIGN_PHILOSOPHY.md) — deliberately not a menu item or
   // button, so it's never reachable by accident. Scoped to this window's input (not
@@ -56,7 +102,8 @@ function createWindow() {
 
     if (!input.control || !input.shift || !input.alt || input.key.toLowerCase() !== "d") return;
     const enabled = configStore.toggleDeveloperMode();
-    mainWindow.setMenu(buildAppMenu(mainWindow, configStore.getSettings().language, enabled));
+    const settings = configStore.getSettings();
+    mainWindow.setMenu(buildAppMenu(mainWindow, settings.language, enabled, settings.modelTier));
   });
 
   // Electron does not provide a native Cut/Copy/Paste context menu on right-click the way a
@@ -82,9 +129,8 @@ function createWindow() {
     }
   });
 
-  // TEMP DEBUG: catches the OTHER class of "unexpected close" — a renderer/GPU process crash
-  // isn't a catchable JS exception, it's a native process-level event. Remove alongside
-  // src/debug/editDebugLogger.js.
+  // A renderer/GPU process crash is not a catchable JS exception, so Developer Mode records
+  // these native lifecycle events separately.
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
     editDebugLogger.log("RENDERER PROCESS GONE", details);
   });
@@ -100,8 +146,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // TEMP DEBUG: installs process.on('uncaughtException')/('unhandledRejection') so nothing in
-  // the main process can close the app silently. Remove alongside src/debug/editDebugLogger.js.
+  // Installs guarded process-level diagnostics; logging remains disabled in normal mode.
   editDebugLogger.setupCrashHandlers();
 
   // Resolves a default UI language on first run (OS-locale detection), before the window/menu
@@ -109,10 +154,17 @@ app.whenReady().then(() => {
   // launch once a language is on record.
   configStore.ensureDefaultLanguage();
 
-  // The Voice Command feature needs microphone access; grant only that permission and only to
-  // our own app window, and deny everything else by default.
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(permission === "media");
+  // Voice Command needs audio capture. Restrict "media" to microphone-only requests from the
+  // one trusted AXION renderer; camera, mixed audio/video and every unrelated permission stay
+  // denied. The check handler mirrors the request handler for permission APIs that consult it.
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, _origin, details) => {
+    const isMainRenderer = webContents === mainWindow?.webContents;
+    return isMainRenderer && permission === "media" && details?.mediaType === "audio";
+  });
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const mediaTypes = Array.isArray(details?.mediaTypes) ? details.mediaTypes : [];
+    const isMicrophoneOnly = mediaTypes.length > 0 && mediaTypes.every((type) => type === "audio");
+    callback(webContents === mainWindow?.webContents && permission === "media" && isMicrophoneOnly);
   });
 
   registerIpcHandlers();

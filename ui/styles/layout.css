@@ -19,6 +19,12 @@
   -webkit-app-region: no-drag;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
 .brand {
   display: flex;
   align-items: center;

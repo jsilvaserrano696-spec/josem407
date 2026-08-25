@@ -5,19 +5,10 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { app, safeStorage } = require("electron");
+const { DEFAULT_SETTINGS, normalizeSettings } = require("./settingsSchema");
 
 const CONFIG_FILE_NAME = "config.json";
 const SUPPORTED_LANGUAGES = ["en", "es"];
-
-const DEFAULT_SETTINGS = {
-  conversationModeDefault: true,
-  // null = "never explicitly chosen yet" (distinct from an actual language code), resolved once
-  // by ensureDefaultLanguage() on first run.
-  language: null,
-  // Hidden developer mode (see DESIGN_PHILOSOPHY.md) — never surfaced in the visible Settings
-  // modal; toggled only via the hidden shortcut registered in src/main/main.js.
-  developerMode: false,
-};
 
 function getConfigPath() {
   return path.join(app.getPath("userData"), CONFIG_FILE_NAME);
@@ -26,7 +17,7 @@ function getConfigPath() {
 function readRawConfig() {
   const configPath = getConfigPath();
   if (!fs.existsSync(configPath)) {
-    return { apiKey: null, encrypted: false, settings: { ...DEFAULT_SETTINGS } };
+    return { apiKey: null, encrypted: false, settings: normalizeSettings(DEFAULT_SETTINGS) };
   }
   try {
     const raw = fs.readFileSync(configPath, "utf-8");
@@ -34,11 +25,11 @@ function readRawConfig() {
     return {
       apiKey: parsed.apiKey ?? null,
       encrypted: Boolean(parsed.encrypted),
-      settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) },
+      settings: normalizeSettings(parsed.settings),
     };
   } catch (error) {
     console.warn(`Failed to read config file, falling back to defaults: ${error.message}`);
-    return { apiKey: null, encrypted: false, settings: { ...DEFAULT_SETTINGS } };
+    return { apiKey: null, encrypted: false, settings: normalizeSettings(DEFAULT_SETTINGS) };
   }
 }
 
@@ -103,7 +94,7 @@ function getSettings() {
 
 function setSettings(partialSettings) {
   const config = readRawConfig();
-  config.settings = { ...config.settings, ...partialSettings };
+  config.settings = normalizeSettings({ ...config.settings, ...(partialSettings ?? {}) });
   writeRawConfig(config);
   return config.settings;
 }
